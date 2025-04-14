@@ -24,6 +24,7 @@ typedef DWORD ALG_ID;
 
 // about library tracker
 #ifndef MOD_LIBRARY_H
+#define HMODULE_GLEAM_RT ((HMODULE)(0x00001234))
 typedef struct {
     int64 NumModules;
 } LT_Status;
@@ -469,6 +470,12 @@ typedef struct {
 
 // InitRuntime is used to initialize runtime and return module methods.
 // If failed to initialize, use GetLastError to get error code.
-Runtime_M* InitRuntime(Runtime_Opts* opts);
+extern Runtime_M* InitRuntime(Runtime_Opts* opts);
+
+// reserve stub for store arguments
+#pragma warning(push)
+#pragma warning(disable: 4276)
+extern void Argument_Stub();
+#pragma warning(pop)
 
 #endif // RUNTIME_H
