@@ -79,9 +79,9 @@ bool saveShellcode()
 
     // extract shellcode and save to file
 #ifdef _WIN64
-    LPSTR path = "../dist/PELoader_x64.bin";
+    LPSTR path = "../../dist/CSBeacon_x64.bin";
 #elif _WIN32
-    LPSTR path = "../dist/PELoader_x86.bin";
+    LPSTR path = "../../dist/CSBeacon_x86.bin";
 #endif
     HANDLE hFile = CreateFileA(
         path, GENERIC_WRITE, 0, NULL, 
@@ -107,13 +107,7 @@ bool saveShellcode()
 
 bool testShellcode()
 {
-    PELoader_M* pe_loader = Boot();
-    if (pe_loader != NULL)
-    {
-        printf_s("unexpected boot return value\n");
-        return false;
-    }
-    errno errno = GetLastErrno();
+    errno errno = Boot();
     if (errno != ERR_INVALID_LOAD_MODE)
     {
         printf_s("unexpected boot errno: 0x%X\n", errno);
