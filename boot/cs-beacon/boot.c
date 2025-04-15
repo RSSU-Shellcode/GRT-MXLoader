@@ -35,29 +35,14 @@ errno Boot()
         return GetLastErrno();
     }
 
-    // prepare initialize PE Loader
-    PELoader_Cfg config = {
-        .FindAPI = runtime->HashAPI.FindAPI,
-
-        .Image        = NULL,
-        .CommandLineA = NULL,
-        .CommandLineW = NULL,
-        .WaitMain     = false,
-        .AllowSkipDLL = false,
-        .StdInput     = NULL,
-        .StdOutput    = NULL,
-        .StdError     = NULL,
-
-        .NotEraseInstruction = options.NotEraseInstruction,
-        .NotAdjustProtect    = options.NotAdjustProtect,
-    };
+    // initialize PE Loader
     PELoader_M* loader = NULL;
     errno err = NO_ERROR;
     for (;;)
     {
         // load PE Image, it cannot be empty
-        uint32 size;
-        if (!runtime->Argument.GetPointer(ARG_ID_PE_IMAGE, &config.Image, &size))
+        void* image; uint32 size;
+        if (!runtime->Argument.GetPointer(ARG_ID_PE_IMAGE, &image, &size))
         {
             err = ERR_NOT_FOUND_PE_IMAGE;
             break;
@@ -67,20 +52,34 @@ errno Boot()
             err = ERR_EMPTY_PE_IMAGE_DATA;
             break;
         }
-        void* image = loadImage(runtime, config.Image, size);
+        image = loadImage(runtime, image, size);
         if (image == NULL)
         {
             err = GetLastErrno();
             break;
         }
-        config.Image = image;
+        PELoader_Cfg config = {
+            .FindAPI = runtime->HashAPI.FindAPI,
+
+            .Image        = image,
+            .CommandLineA = NULL,
+            .CommandLineW = NULL,
+            .WaitMain     = false,
+            .AllowSkipDLL = false,
+            .StdInput     = NULL,
+            .StdOutput    = NULL,
+            .StdError     = NULL,
+
+            .NotEraseInstruction = options.NotEraseInstruction,
+            .NotAdjustProtect    = options.NotAdjustProtect,
+        };
         loader = InitPELoader(runtime, &config);
         if (loader == NULL)
         {
             err = GetLastErrno();
             break;
         }
-        runtime->Memory.Free(config.Image);
+        runtime->Memory.Free(image);
         runtime->Argument.EraseAll();
         break;
     }
