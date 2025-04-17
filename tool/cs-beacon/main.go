@@ -21,7 +21,7 @@ func init() {
 }
 
 func main() {
-	beacon, err := os.ReadFile(input)
+	beacon, err := os.ReadFile(input) // #nosec
 	checkError(err)
 	dll, err := loader.ExtractBeaconStage(beacon)
 	checkError(err)
