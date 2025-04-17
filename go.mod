@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/davecgh/go-spew v1.1.1
+	github.com/For-ACGN/LZSS v1.0.1
 	github.com/RSSU-Shellcode/GRT-Develop v1.4.0
 	github.com/stretchr/testify v1.10.0
 
