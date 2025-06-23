@@ -9,12 +9,21 @@
 #include "errno.h"
 
 // about runtime options at the shellcode tail.
+//
+// +------------+---------+---------+-----------+
+// | magic mark | option1 | option2 | option... |
+// +------------+---------+---------+-----------+
+// |    0xFC    |   var   |   var   |    var    |
+// +------------+---------+---------+-----------+
+
 #define OPTION_STUB_SIZE  64
 #define OPTION_STUB_MAGIC 0xFC
 
-#define OPT_OFFSET_NOT_ERASE_INSTRUCTION    1
-#define OPT_OFFSET_NOT_ADJUST_PROTECT       2
-#define OPT_OFFSET_NOT_TRACK_CURRENT_THREAD 3
+#define OPT_OFFSET_DISABLE_SYSMON        1
+#define OPT_OFFSET_DISABLE_WATCHDOG      2
+#define OPT_OFFSET_NOT_ERASE_INSTRUCTION 3
+#define OPT_OFFSET_NOT_ADJUST_PROTECT    4
+#define OPT_OFFSET_TRACK_CURRENT_THREAD  5
 
 // for generic shellcode development.
 
@@ -84,22 +93,33 @@ typedef struct {
     int64 NumFiles;
     int64 NumDirectories;
     int64 NumIOCPs;
+    int64 NumKeys;
     int64 NumSockets;
 } RT_Status;
 #endif // MOD_RESOURCE_H
 
 typedef bool (*ResLockMutex_t)(HANDLE hMutex);
 typedef bool (*ResUnlockMutex_t)(HANDLE hMutex);
+typedef bool (*ResLockEvent_t)(HANDLE hEvent);
+typedef bool (*ResUnlockEvent_t)(HANDLE hEvent);
+typedef bool (*ResLockSemaphore_t)(HANDLE hSemaphore);
+typedef bool (*ResUnlockSemaphore_t)(HANDLE hSemaphore);
+typedef bool (*ResLockWaitableTimer_t)(HANDLE hTimer);
+typedef bool (*ResUnlockWaitableTimer_t)(HANDLE hTimer);
+typedef bool (*ResLockFile_t)(HANDLE hFile);
+typedef bool (*ResUnlockFile_t)(HANDLE hFile);
 typedef bool (*ResGetStatus_t)(RT_Status* status);
 typedef bool (*ResFreeAllMu_t)();
 
 // about argument store
+// GetValue: if value is NULL, size must not NULL for receive argument size.
 typedef bool (*ArgGetValue_t)(uint32 id, void* value, uint32* size);
 typedef bool (*ArgGetPointer_t)(uint32 id, void** pointer, uint32* size);
 typedef bool (*ArgErase_t)(uint32 id);
 typedef void (*ArgEraseAll_t)();
 
 // about in-memory storage
+// GetValue: if value is NULL, size must not NULL for receive data size.
 typedef bool (*ImsSetValue_t)(int id, void* value, uint size);
 typedef bool (*ImsGetValue_t)(int id, void* value, uint* size);
 typedef bool (*ImsGetPointer_t)(int id, void** pointer, uint* size);
@@ -166,7 +186,7 @@ typedef errno (*HTTPFree_t)();
 // ================================WinCrypto================================
 
 // The allocated databuf must call Runtime_M.Memory.Free().
-// 
+//
 // +---------+-------------+
 // |   IV    | cipher data |
 // +---------+-------------+
@@ -178,7 +198,7 @@ typedef errno (*HTTPFree_t)();
 //
 // The HMAC/AES Key only contain the key data, not contain header.
 // The RSA Private/Public Key contain the header RSAPUBKEYHEADER.
-// 
+//
 // The valid AES key length are 16, 24, 32 bytes.
 
 #ifndef WIN_CRYPTO_H
@@ -218,15 +238,15 @@ typedef void (*Encrypt_t)(void* buf, uint size, byte* key, byte* iv);
 typedef void (*Decrypt_t)(void* buf, uint size, byte* key, byte* iv);
 
 // about compress module
-// 
+//
 // Compress is used to compress data with LZSS.
 // If return value is -1, window size is invalid.
 // If dst is NULL, calculate the compressed length.
-// 
+//
 // Decompress is used to decompress data with LZSS.
 // If dst is NULL, calculate the raw data length.
-// 
-// Since the algorithm is relatively simple to implement, 
+//
+// Since the algorithm is relatively simple to implement,
 // it is NOT recommended to compress data exceeding 8MB.
 
 typedef uint (*Compress_t)(void* dst, void* src, uint len, uint window);
@@ -244,7 +264,7 @@ typedef uint (*Decompress_t)(void* dst, void* src, uint len);
 // item data structure
 // 0······· value or pointer
 // ·0000000 data length
-// 
+//
 // Serialize is used to serialize structure to a buffer.
 // If success, return the serialized data length. If failed, return 0.
 // If serialized is NULL, it will calculate the serialized data length.
@@ -269,14 +289,66 @@ typedef uint (*Decompress_t)(void* dst, void* src, uint len);
 typedef uint32 (*Serialize_t)(uint32* descriptor, void* data, void* serialized);
 typedef bool   (*Unserialize_t)(void* serialized, void* data);
 
-// GetProcAddress, GetProcAddressByName and GetProcAddressByHash
-// are use Hash API module for implement original GetProcAddress.
-// GetProcAddressOriginal is not recommend, usually use
-// GetProcAddressByName with hook FALSE instead it.
-// These methods are used for IAT hooks or common shellcode.
-typedef void* (*GetProcByName_t)(HMODULE hModule, LPCSTR lpProcName, bool hook);
-typedef void* (*GetProcByHash_t)(uint hash, uint key, bool hook);
-typedef void* (*GetProcOriginal_t)(HMODULE hModule, LPCSTR lpProcName);
+// about memory scanner module
+//
+// MemScan is used to scans data in the memory of the current process.
+// The return value is the number of results scanned, if failed to
+// scan, it will return -1, use the GetLastErrno for get error code.
+//
+// [WARNING]
+// You need to manually exclude certain scan results, such as the "value"
+// stored in the stack as a argument for MemScanByValue.
+//
+// example:
+//   uintptr results[10];
+//   MemScanByPattern("F1 F2 ?? A1", results, arrlen(results));
+typedef uint (*MemScanByValue_t)(void* value, uint size, uintptr* results, uint maxItem);
+typedef uint (*MemScanByPattern_t)(byte* pattern, uintptr* results, uint maxItem);
+typedef void (*BinToPattern_t)(void* data, uint size, byte* pattern);
+
+// GetProcByName and GetProcByHash are use HashAPI module for
+// implement original GetProcAddress.
+//
+// GetProcAddress is not recommend, because GetProcAddressByName
+// will try to use HashAPI first, then use original GetProcAddress,
+// recommend use GetProcByName with redirect FALSE instead it.
+//
+// These methods are used for API Redirector or common shellcode.
+typedef void* (*GetProcByName_t)(HMODULE hModule, LPCSTR lpProcName, bool redirect);
+typedef void* (*GetProcByHash_t)(uint hash, uint key, bool redirect);
+
+// about sysmon
+#ifndef SYSMON_H
+typedef struct {
+    int64 NumNormal;
+    int64 NumRecover;
+    int64 NumPanic;
+} SM_Status;
+#endif // SYSMON_H
+
+typedef bool  (*SMGetStatus_t)(SM_Status* status);
+typedef errno (*SMPause_t)();
+typedef errno (*SMContinue_t)();
+
+// about watchdog
+#ifndef WATCHDOG_H
+typedef struct {
+    int64 NumKick;
+    int64 NumNormal;
+    int64 NumReset;
+} WD_Status;
+#endif // WATCHDOG_H
+
+typedef void (*WDHandler_t)();
+
+typedef errno (*WDKick_t)();
+typedef errno (*WDEnable_t)();
+typedef errno (*WDDisable_t)();
+typedef bool  (*WDIsEnabled_t)();
+typedef void  (*WDSetHandler_t)(WDHandler_t handler);
+typedef bool  (*WDGetStatus_t)(WD_Status* status);
+typedef errno (*WDPause_t)();
+typedef errno (*WDContinue_t)();
 
 // about runtime core methods
 //
@@ -284,22 +356,31 @@ typedef void* (*GetProcOriginal_t)(HMODULE hModule, LPCSTR lpProcName);
 // are used to test and research, if use them, runtime will loss
 // the shield protect and structure data encrypt.
 //
-// SleepHR is used to call Hide, Sleep and Recover, usually it called by hook.
+// SleepHR is used to call Hide, Sleep and Recover.
 // Cleanup is used to clean all tracked object except locked.
-// Exit is used to clean all tracked object and clean runtime self.
+//
+// Exit is used to clean all tracked object and clean runtime self,
+// it can only erase the instruction about the runtime self,
+// caller need erase the other memory data about instance.
+//
+// Stop is same as Exit, but it will exit current thread after exit,
+// it can erase the instruction from BootInstAddress to runtime epilogue.
 typedef struct {
     LT_Status Library;
     MT_Status Memory;
     TT_Status Thread;
     RT_Status Resource;
+    SM_Status Sysmon;
+    WD_Status Watchdog;
 } Runtime_Metrics;
 
-typedef errno (*SleepHR_t)(uint32 milliseconds);
-typedef errno (*Hide_t)();
-typedef errno (*Recover_t)();
-typedef errno (*Metrics_t)(Runtime_Metrics* metrics);
-typedef errno (*Cleanup_t)();
-typedef errno (*Exit_t)();
+typedef errno (*RTSleepHR_t)(uint32 milliseconds);
+typedef errno (*RTHide_t)();
+typedef errno (*RTRecover_t)();
+typedef errno (*RTMetrics_t)(Runtime_Metrics* metrics);
+typedef errno (*RTCleanup_t)();
+typedef errno (*RTExit_t)();
+typedef void  (*RTStop_t)();
 
 // Runtime_M contains exported runtime methods.
 typedef struct {
@@ -349,10 +430,18 @@ typedef struct {
     } Thread;
 
     struct {
-        ResLockMutex_t   LockMutex;
-        ResUnlockMutex_t UnlockMutex;
-        ResGetStatus_t   Status;
-        ResFreeAllMu_t   FreeAll;
+        ResLockMutex_t           LockMutex;
+        ResUnlockMutex_t         UnlockMutex;
+        ResLockEvent_t           LockEvent;
+        ResUnlockEvent_t         UnlockEvent;
+        ResLockSemaphore_t       LockSemaphore;
+        ResUnlockSemaphore_t     UnlockSemaphore;
+        ResLockWaitableTimer_t   LockWaitableTimer;
+        ResUnlockWaitableTimer_t UnlockWaitableTimer;
+        ResLockFile_t            LockFile;
+        ResUnlockFile_t          UnlockFile;
+        ResGetStatus_t           Status;
+        ResFreeAllMu_t           FreeAll;
     } Resource;
 
     struct {
@@ -383,7 +472,7 @@ typedef struct {
         WriteFileA_t WriteFileA;
         WriteFileW_t WriteFileW;
     } WinFile;
-    
+
     struct {
         HTTPGet_t  Get;
         HTTPPost_t Post;
@@ -432,31 +521,64 @@ typedef struct {
     } Serialization;
 
     struct {
-        GetProcByName_t   GetProcByName;
-        GetProcByHash_t   GetProcByHash;
-        GetProcOriginal_t GetProcOriginal;
+        MemScanByValue_t   ScanByValue;
+        MemScanByPattern_t ScanByPattern;
+        BinToPattern_t     BinToPattern;
+    } MemScanner;
+
+    struct {
+        GetProcByName_t GetProcByName;
+        GetProcByHash_t GetProcByHash;
     } Procedure;
 
     struct {
-        SleepHR_t Sleep;
-        Hide_t    Hide;
-        Recover_t Recover;
-        Metrics_t Metrics;
-        Cleanup_t Cleanup;
-        Exit_t    Exit;
-    } Core;
+        SMGetStatus_t Status;
+        SMPause_t     Pause;
+        SMContinue_t  Continue;
+    } Sysmon;
+
+    struct {
+        WDKick_t       Kick;
+        WDEnable_t     Enable;
+        WDDisable_t    Disable;
+        WDIsEnabled_t  IsEnabled;
+        WDSetHandler_t SetHandler;
+        WDGetStatus_t  Status;
+        WDPause_t      Pause;
+        WDContinue_t   Continue;
+    } Watchdog;
+
+    struct {
+        GetProcAddress_t GetProcAddress;
+        ExitProcess_t    ExitProcess;
+    } Raw;
 
     struct {
         HANDLE Mutex;
     } Data;
 
-    ExitProcess_t ExitProcess;
+    struct {
+        RTSleepHR_t Sleep;
+        RTHide_t    Hide;
+        RTRecover_t Recover;
+        RTMetrics_t Metrics;
+        RTCleanup_t Cleanup;
+        RTExit_t    Exit;
+        RTStop_t    Stop;
+    } Core;
 } Runtime_M;
 
 typedef struct {
-    // protect instructions like shellcode before Runtime,
+    // protect instructions like boot before Runtime,
     // if it is NULL, Runtime will only protect self.
     void* BootInstAddress;
+
+    // disable sysmon for implement single thread model.
+    bool DisableSysmon;
+
+    // disable watchdog for implement single thread model.
+    // it will overwrite the control from upper module.
+    bool DisableWatchdog;
 
     // not erase runtime instructions after call Runtime_M.Exit
     bool NotEraseInstruction;
@@ -465,6 +587,7 @@ typedef struct {
     bool NotAdjustProtect;
 
     // track current thread for test or debug mode.
+    // it maybe improved the single thread model.
     bool TrackCurrentThread;
 } Runtime_Opts;
 
