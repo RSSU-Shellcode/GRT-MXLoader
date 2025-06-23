@@ -20,6 +20,7 @@ typedef uint SIZE_T;
 typedef void* POINTER;
 typedef void* PVOID;
 typedef void* HANDLE;
+typedef void* FARPROC;
 
 typedef void*   LPVOID;
 typedef uint8*  LPSTR;
