@@ -91,11 +91,11 @@
     <ClInclude Include="build.h">
       <Filter>Header</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\pe_image.h">
+      <Filter>Header</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\debug.c">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\errno.c">
       <Filter>Source</Filter>
     </ClCompile>
