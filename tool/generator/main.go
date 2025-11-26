@@ -97,15 +97,15 @@ func main() {
 			fmt.Println("check PE image file")
 			peFile, err := pe.NewFile(bytes.NewReader(data))
 			checkError(err)
-			switch peFile.OptionalHeader.(type) {
-			case *pe.OptionalHeader64:
+			switch peFile.Machine {
+			case pe.IMAGE_FILE_MACHINE_AMD64:
 				arch = 64
 				fmt.Println("image architecture: x64")
-			case *pe.OptionalHeader32:
+			case pe.IMAGE_FILE_MACHINE_I386:
 				arch = 32
 				fmt.Println("image architecture: x86")
 			default:
-				fmt.Println("unknown image optional header type")
+				fmt.Println("unknown pe image architecture type")
 				return
 			}
 		}
