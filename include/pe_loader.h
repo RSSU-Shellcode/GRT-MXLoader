@@ -101,6 +101,6 @@ typedef struct {
 // InitPELoader is used to initialize PE loader, it will load PE file
 // from memory, but it will not run it, caller must use PELoader_M.
 // If failed to initialize, use GetLastError to get error code.
-PELoader_M* InitPELoader(Runtime_M* runtime, PELoader_Cfg* cfg);
+extern PELoader_M* InitPELoader(Runtime_M* runtime, PELoader_Cfg* cfg);
 
 #endif // PE_LOADER_H
