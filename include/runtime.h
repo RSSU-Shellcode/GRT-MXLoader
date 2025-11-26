@@ -19,11 +19,13 @@
 #define OPTION_STUB_SIZE  64
 #define OPTION_STUB_MAGIC 0xFC
 
-#define OPT_OFFSET_DISABLE_SYSMON        1
-#define OPT_OFFSET_DISABLE_WATCHDOG      2
-#define OPT_OFFSET_NOT_ERASE_INSTRUCTION 3
-#define OPT_OFFSET_NOT_ADJUST_PROTECT    4
-#define OPT_OFFSET_TRACK_CURRENT_THREAD  5
+#define OPT_OFFSET_ENABLE_SECURITY_MODE  1
+#define OPT_OFFSET_DISABLE_DETECTOR      2
+#define OPT_OFFSET_DISABLE_SYSMON        3
+#define OPT_OFFSET_DISABLE_WATCHDOG      4
+#define OPT_OFFSET_NOT_ERASE_INSTRUCTION 5
+#define OPT_OFFSET_NOT_ADJUST_PROTECT    6
+#define OPT_OFFSET_TRACK_CURRENT_THREAD  7
 
 // for generic shellcode development.
 
@@ -31,18 +33,36 @@
 typedef DWORD ALG_ID;
 #endif // DLL_ADVAPI32_H
 
+// about detector
+#ifndef DETECTOR_H
+typedef struct {
+    BOOL  IsEnabled;
+    BOOL  HasDebugger;
+    BOOL  HasMemoryScanner;
+    BOOL  InSandbox;
+    BOOL  InVirtualMachine;
+    BOOL  InEmulator;
+    BOOL  IsAccelerated;
+    int32 SafeRank;
+} DT_Status;
+#endif // DETECTOR_H
+
+typedef BOOL (*DetDetect_t)();
+typedef BOOL (*DetGetStatus_t)(DT_Status* status);
+
 // about library tracker
 #ifndef MOD_LIBRARY_H
 #define HMODULE_GLEAM_RT ((HMODULE)(0x00001234))
 typedef struct {
     int64 NumModules;
+    int64 NumProcedures;
 } LT_Status;
 #endif // MOD_LIBRARY_H
 
-typedef bool (*LibLockModule_t)(HMODULE hModule);
-typedef bool (*LibUnlockModule_t)(HMODULE hModule);
-typedef bool (*LibGetStatus_t)(LT_Status* status);
-typedef bool (*LibFreeAllMu_t)();
+typedef BOOL (*LibLockModule_t)(HMODULE hModule);
+typedef BOOL (*LibUnlockModule_t)(HMODULE hModule);
+typedef BOOL (*LibGetStatus_t)(LT_Status* status);
+typedef BOOL (*LibFreeAllMu_t)();
 
 // about memory tracker
 #ifndef MOD_MEMORY_H
@@ -62,10 +82,10 @@ typedef void* (*MemRealloc_t)(void* ptr, uint size);
 typedef void  (*MemFree_t)(void* ptr);
 typedef uint  (*MemSize_t)(void* ptr);
 typedef uint  (*MemCap_t)(void* ptr);
-typedef bool  (*MemLockRegion_t)(LPVOID address);
-typedef bool  (*MemUnlockRegion_t)(LPVOID address);
-typedef bool  (*MemGetStatus_t)(MT_Status* status);
-typedef bool  (*MemFreeAllMu_t)();
+typedef BOOL  (*MemLockRegion_t)(LPVOID address);
+typedef BOOL  (*MemUnlockRegion_t)(LPVOID address);
+typedef BOOL  (*MemGetStatus_t)(MT_Status* status);
+typedef BOOL  (*MemFreeAllMu_t)();
 
 // about thread tracker
 #ifndef MOD_THREAD_H
@@ -76,12 +96,12 @@ typedef struct {
 } TT_Status;
 #endif // MOD_THREAD_H
 
-typedef HANDLE (*ThdNew_t)(void* address, void* parameter, bool track);
+typedef HANDLE (*ThdNew_t)(void* address, void* parameter, BOOL track);
 typedef void   (*ThdExit_t)();
-typedef bool   (*ThdLockThread_t)(DWORD id);
-typedef bool   (*ThdUnlockThread_t)(DWORD id);
-typedef bool   (*ThdGetStatus_t)(TT_Status* status);
-typedef bool   (*ThdKillAllMu_t)();
+typedef BOOL   (*ThdLockThread_t)(DWORD id);
+typedef BOOL   (*ThdUnlockThread_t)(DWORD id);
+typedef BOOL   (*ThdGetStatus_t)(TT_Status* status);
+typedef BOOL   (*ThdKillAllMu_t)();
 
 // about resource tracker
 #ifndef MOD_RESOURCE_H
@@ -93,38 +113,38 @@ typedef struct {
     int64 NumFiles;
     int64 NumDirectories;
     int64 NumIOCPs;
-    int64 NumKeys;
+    int64 NumRegKeys;
     int64 NumSockets;
 } RT_Status;
 #endif // MOD_RESOURCE_H
 
-typedef bool (*ResLockMutex_t)(HANDLE hMutex);
-typedef bool (*ResUnlockMutex_t)(HANDLE hMutex);
-typedef bool (*ResLockEvent_t)(HANDLE hEvent);
-typedef bool (*ResUnlockEvent_t)(HANDLE hEvent);
-typedef bool (*ResLockSemaphore_t)(HANDLE hSemaphore);
-typedef bool (*ResUnlockSemaphore_t)(HANDLE hSemaphore);
-typedef bool (*ResLockWaitableTimer_t)(HANDLE hTimer);
-typedef bool (*ResUnlockWaitableTimer_t)(HANDLE hTimer);
-typedef bool (*ResLockFile_t)(HANDLE hFile);
-typedef bool (*ResUnlockFile_t)(HANDLE hFile);
-typedef bool (*ResGetStatus_t)(RT_Status* status);
-typedef bool (*ResFreeAllMu_t)();
+typedef BOOL (*ResLockMutex_t)(HANDLE hMutex);
+typedef BOOL (*ResUnlockMutex_t)(HANDLE hMutex);
+typedef BOOL (*ResLockEvent_t)(HANDLE hEvent);
+typedef BOOL (*ResUnlockEvent_t)(HANDLE hEvent);
+typedef BOOL (*ResLockSemaphore_t)(HANDLE hSemaphore);
+typedef BOOL (*ResUnlockSemaphore_t)(HANDLE hSemaphore);
+typedef BOOL (*ResLockWaitableTimer_t)(HANDLE hTimer);
+typedef BOOL (*ResUnlockWaitableTimer_t)(HANDLE hTimer);
+typedef BOOL (*ResLockFile_t)(HANDLE hFile);
+typedef BOOL (*ResUnlockFile_t)(HANDLE hFile);
+typedef BOOL (*ResGetStatus_t)(RT_Status* status);
+typedef BOOL (*ResFreeAllMu_t)();
 
 // about argument store
 // GetValue: if value is NULL, size must not NULL for receive argument size.
-typedef bool (*ArgGetValue_t)(uint32 id, void* value, uint32* size);
-typedef bool (*ArgGetPointer_t)(uint32 id, void** pointer, uint32* size);
-typedef bool (*ArgErase_t)(uint32 id);
+typedef BOOL (*ArgGetValue_t)(uint32 id, void* value, uint32* size);
+typedef BOOL (*ArgGetPointer_t)(uint32 id, void** pointer, uint32* size);
+typedef BOOL (*ArgErase_t)(uint32 id);
 typedef void (*ArgEraseAll_t)();
 
 // about in-memory storage
 // GetValue: if value is NULL, size must not NULL for receive data size.
-typedef bool (*ImsSetValue_t)(int id, void* value, uint size);
-typedef bool (*ImsGetValue_t)(int id, void* value, uint* size);
-typedef bool (*ImsGetPointer_t)(int id, void** pointer, uint* size);
-typedef bool (*ImsDelete_t)(int id);
-typedef bool (*ImsDeleteAll_t)();
+typedef BOOL (*ImsSetValue_t)(int id, void* value, uint size);
+typedef BOOL (*ImsGetValue_t)(int id, void* value, uint* size);
+typedef BOOL (*ImsGetPointer_t)(int id, void** pointer, uint* size);
+typedef BOOL (*ImsDelete_t)(int id);
+typedef BOOL (*ImsDeleteAll_t)();
 
 // about WinBase
 // The buffer allocated from methods must call Runtime_M.Memory.Free().
@@ -149,7 +169,7 @@ typedef errno (*WriteFileW_t)(LPWSTR path, databuf* file);
 // Init is used to initialize a HTTP request structure.
 // Free is used to try to free winhttp.dll after use.
 
-#pragma pack(1)
+#pragma pack(push, 1)
 typedef struct {
     UTF16 URL; // https://user:pass@www.example.com/test.txt
 
@@ -166,7 +186,7 @@ typedef struct {
 
     databuf* Body;
 } HTTP_Request;
-#pragma pack()
+#pragma pack(pop)
 
 typedef struct {
     int32 StatusCode; // example 200, 404
@@ -177,16 +197,16 @@ typedef struct {
 
 #endif // WIN_HTTP_H
 
+typedef void  (*HTTPInit_t)(HTTP_Request* req);
 typedef errno (*HTTPGet_t)(HTTP_Request* req, HTTP_Response* resp);
 typedef errno (*HTTPPost_t)(HTTP_Request* req, HTTP_Response* resp);
 typedef errno (*HTTPDo_t)(UTF16 method, HTTP_Request* req, HTTP_Response* resp);
-typedef void  (*HTTPInit_t)(HTTP_Request* req);
-typedef errno (*HTTPFree_t)();
+typedef errno (*HTTPFreeDLL_t)();
 
 // ================================WinCrypto================================
 
 // The allocated databuf must call Runtime_M.Memory.Free().
-//
+// 
 // +---------+-------------+
 // |   IV    | cipher data |
 // +---------+-------------+
@@ -198,7 +218,7 @@ typedef errno (*HTTPFree_t)();
 //
 // The HMAC/AES Key only contain the key data, not contain header.
 // The RSA Private/Public Key contain the header RSAPUBKEYHEADER.
-//
+// 
 // The valid AES key length are 16, 24, 32 bytes.
 
 #ifndef WIN_CRYPTO_H
@@ -222,31 +242,38 @@ typedef errno (*CryptoRSASign_t)(ALG_ID aid, databuf* data, databuf* key, databu
 typedef errno (*CryptoRSAVerify_t)(ALG_ID aid, databuf* data, databuf* key, databuf* sign);
 typedef errno (*CryptoRSAEncrypt_t)(databuf* data, databuf* key, databuf* output);
 typedef errno (*CryptoRSADecrypt_t)(databuf* data, databuf* key, databuf* output);
+typedef errno (*CryptoFreeDLL_t)();
 
 // =================================Runtime=================================
 
 // about random module
-typedef void   (*RandBuffer_t)(void* buf, int64 size);
-typedef bool   (*RandBool_t)(uint64 seed);
+typedef BOOL   (*RandBool_t)(uint64 seed);
+typedef byte   (*RandByte_t)(uint64 seed);
+typedef int    (*RandInt_t)(uint64 seed);
+typedef uint   (*RandUint_t)(uint64 seed);
 typedef int64  (*RandInt64_t)(uint64 seed);
 typedef uint64 (*RandUint64_t)(uint64 seed);
+typedef int    (*RandIntN_t)(uint64 seed, int n);
+typedef uint   (*RandUintN_t)(uint64 seed, uint n);
 typedef int64  (*RandInt64N_t)(uint64 seed, int64 n);
 typedef uint64 (*RandUint64N_t)(uint64 seed, uint64 n);
+typedef void   (*RandBuffer_t)(void* buf, int64 size);
+typedef void   (*RandSequence_t)(int* array, int n);
 
 // about crypto module
 typedef void (*Encrypt_t)(void* buf, uint size, byte* key, byte* iv);
 typedef void (*Decrypt_t)(void* buf, uint size, byte* key, byte* iv);
 
 // about compress module
-//
+// 
 // Compress is used to compress data with LZSS.
 // If return value is -1, window size is invalid.
 // If dst is NULL, calculate the compressed length.
-//
+// 
 // Decompress is used to decompress data with LZSS.
 // If dst is NULL, calculate the raw data length.
-//
-// Since the algorithm is relatively simple to implement,
+// 
+// Since the algorithm is relatively simple to implement, 
 // it is NOT recommended to compress data exceeding 8MB.
 
 typedef uint (*Compress_t)(void* dst, void* src, uint len, uint window);
@@ -264,7 +291,7 @@ typedef uint (*Decompress_t)(void* dst, void* src, uint len);
 // item data structure
 // 0······· value or pointer
 // ·0000000 data length
-//
+// 
 // Serialize is used to serialize structure to a buffer.
 // If success, return the serialized data length. If failed, return 0.
 // If serialized is NULL, it will calculate the serialized data length.
@@ -287,18 +314,18 @@ typedef uint (*Decompress_t)(void* dst, void* src, uint len);
 #endif // SERIALIZE_H
 
 typedef uint32 (*Serialize_t)(uint32* descriptor, void* data, void* serialized);
-typedef bool   (*Unserialize_t)(void* serialized, void* data);
+typedef BOOL   (*Unserialize_t)(void* serialized, void* data);
 
 // about memory scanner module
-//
+// 
 // MemScan is used to scans data in the memory of the current process.
 // The return value is the number of results scanned, if failed to
 // scan, it will return -1, use the GetLastErrno for get error code.
-//
+// 
 // [WARNING]
 // You need to manually exclude certain scan results, such as the "value"
 // stored in the stack as a argument for MemScanByValue.
-//
+// 
 // example:
 //   uintptr results[10];
 //   MemScanByPattern("F1 F2 ?? A1", results, arrlen(results));
@@ -308,31 +335,36 @@ typedef void (*BinToPattern_t)(void* data, uint size, byte* pattern);
 
 // GetProcByName and GetProcByHash are use HashAPI module for
 // implement original GetProcAddress.
-//
+// 
 // GetProcAddress is not recommend, because GetProcAddressByName
 // will try to use HashAPI first, then use original GetProcAddress,
 // recommend use GetProcByName with redirect FALSE instead it.
-//
+// 
 // These methods are used for API Redirector or common shellcode.
-typedef void* (*GetProcByName_t)(HMODULE hModule, LPCSTR lpProcName, bool redirect);
-typedef void* (*GetProcByHash_t)(uint hash, uint key, bool redirect);
+typedef void* (*GetProcByName_t)(HMODULE hModule, LPCSTR lpProcName, BOOL redirect);
+typedef void* (*GetProcByHash_t)(uint mHash, uint pHash, uint hKey, BOOL redirect);
+typedef void* (*GetProcByHashML_t)(void* list, uint mHash, uint pHash, uint hKey, BOOL redirect);
 
 // about sysmon
 #ifndef SYSMON_H
 typedef struct {
+    BOOL  IsEnabled;
+    int32 Reserved;
     int64 NumNormal;
     int64 NumRecover;
     int64 NumPanic;
 } SM_Status;
 #endif // SYSMON_H
 
-typedef bool  (*SMGetStatus_t)(SM_Status* status);
+typedef BOOL  (*SMGetStatus_t)(SM_Status* status);
 typedef errno (*SMPause_t)();
 typedef errno (*SMContinue_t)();
 
 // about watchdog
 #ifndef WATCHDOG_H
 typedef struct {
+    BOOL  IsEnabled;
+    int32 Reserved;
     int64 NumKick;
     int64 NumNormal;
     int64 NumReset;
@@ -344,11 +376,19 @@ typedef void (*WDHandler_t)();
 typedef errno (*WDKick_t)();
 typedef errno (*WDEnable_t)();
 typedef errno (*WDDisable_t)();
-typedef bool  (*WDIsEnabled_t)();
+typedef BOOL  (*WDIsEnabled_t)();
 typedef void  (*WDSetHandler_t)(WDHandler_t handler);
-typedef bool  (*WDGetStatus_t)(WD_Status* status);
+typedef BOOL  (*WDGetStatus_t)(WD_Status* status);
 typedef errno (*WDPause_t)();
 typedef errno (*WDContinue_t)();
+
+// about process environment
+//
+// These methods are used to ensure that __readgsqword or __readfsdword
+// is used only once, of course except GetTEB.
+typedef void* (*GetPEB_t)();   // get stored PEB address
+typedef void* (*GetTEB_t)();   // only a shortcut
+typedef void* (*GetIMOML_t)(); // get stored InMemoryOrderModuleList address
 
 // about runtime core methods
 //
@@ -358,11 +398,11 @@ typedef errno (*WDContinue_t)();
 //
 // SleepHR is used to call Hide, Sleep and Recover.
 // Cleanup is used to clean all tracked object except locked.
-//
+// 
 // Exit is used to clean all tracked object and clean runtime self,
-// it can only erase the instruction about the runtime self,
+// it can only erase the instruction about the runtime self, 
 // caller need erase the other memory data about instance.
-//
+// 
 // Stop is same as Exit, but it will exit current thread after exit,
 // it can erase the instruction from BootInstAddress to runtime epilogue.
 typedef struct {
@@ -370,6 +410,7 @@ typedef struct {
     MT_Status Memory;
     TT_Status Thread;
     RT_Status Resource;
+    DT_Status Detector;
     SM_Status Sysmon;
     WD_Status Watchdog;
 } Runtime_Metrics;
@@ -385,9 +426,10 @@ typedef void  (*RTStop_t)();
 // Runtime_M contains exported runtime methods.
 typedef struct {
     struct {
-        FindAPI_t   FindAPI;
-        FindAPI_A_t FindAPI_A;
-        FindAPI_W_t FindAPI_W;
+        FindAPI_t    FindAPI;
+        FindAPI_ML_t FindAPI_ML;   
+        FindAPI_A_t  FindAPI_A;
+        FindAPI_W_t  FindAPI_W;
     } HashAPI;
 
     struct {
@@ -440,8 +482,9 @@ typedef struct {
         ResUnlockWaitableTimer_t UnlockWaitableTimer;
         ResLockFile_t            LockFile;
         ResUnlockFile_t          UnlockFile;
-        ResGetStatus_t           Status;
-        ResFreeAllMu_t           FreeAll;
+
+        ResGetStatus_t Status;
+        ResFreeAllMu_t FreeAll;
     } Resource;
 
     struct {
@@ -472,14 +515,14 @@ typedef struct {
         WriteFileA_t WriteFileA;
         WriteFileW_t WriteFileW;
     } WinFile;
-
+    
     struct {
+        HTTPInit_t Init;
         HTTPGet_t  Get;
         HTTPPost_t Post;
         HTTPDo_t   Do;
 
-        HTTPInit_t Init;
-        HTTPFree_t Free;
+        HTTPFreeDLL_t FreeDLL;
     } WinHTTP;
 
     struct {
@@ -494,15 +537,23 @@ typedef struct {
         CryptoRSAVerify_t  RSAVerify;
         CryptoRSAEncrypt_t RSAEncrypt;
         CryptoRSADecrypt_t RSADecrypt;
+
+        CryptoFreeDLL_t FreeDLL;
     } WinCrypto;
 
     struct {
-        RandBuffer_t  Buffer;
-        RandBool_t    Bool;
-        RandInt64_t   Int64;
-        RandUint64_t  Uint64;
-        RandInt64N_t  Int64N;
-        RandUint64N_t Uint64N;
+        RandBool_t     Bool;
+        RandByte_t     Byte;
+        RandInt_t      Int;
+        RandUint_t     Uint;
+        RandInt64_t    Int64;
+        RandUint64_t   Uint64;
+        RandIntN_t     IntN;
+        RandUintN_t    UintN;
+        RandInt64N_t   Int64N;
+        RandUint64N_t  Uint64N;
+        RandBuffer_t   Buffer;
+        RandSequence_t Sequence;
     } Random;
 
     struct {
@@ -527,35 +578,47 @@ typedef struct {
     } MemScanner;
 
     struct {
-        GetProcByName_t GetProcByName;
-        GetProcByHash_t GetProcByHash;
+        GetProcByName_t   GetProcByName;
+        GetProcByHash_t   GetProcByHash;
+        GetProcByHashML_t GetProcByHashML;
     } Procedure;
 
     struct {
+        DetDetect_t    Detect;
+        DetGetStatus_t Status;
+    } Detector;
+
+    struct {
         SMGetStatus_t Status;
-        SMPause_t     Pause;
-        SMContinue_t  Continue;
+
+        // only for test, NOT use it.
+        SMPause_t    _Pause;
+        SMContinue_t _Continue;
     } Sysmon;
 
     struct {
+        WDSetHandler_t SetHandler;
         WDKick_t       Kick;
         WDEnable_t     Enable;
         WDDisable_t    Disable;
         WDIsEnabled_t  IsEnabled;
-        WDSetHandler_t SetHandler;
         WDGetStatus_t  Status;
-        WDPause_t      Pause;
-        WDContinue_t   Continue;
+
+        // only for test, NOT use it.
+        WDPause_t    _Pause;
+        WDContinue_t _Continue;
     } Watchdog;
+
+    struct {
+        GetPEB_t   GetPEB;
+        GetTEB_t   GetTEB;
+        GetIMOML_t GetIMOML;
+    } Env;
 
     struct {
         GetProcAddress_t GetProcAddress;
         ExitProcess_t    ExitProcess;
     } Raw;
-
-    struct {
-        HANDLE Mutex;
-    } Data;
 
     struct {
         RTSleepHR_t Sleep;
@@ -566,12 +629,23 @@ typedef struct {
         RTExit_t    Exit;
         RTStop_t    Stop;
     } Core;
+
+    struct {
+        HANDLE Mutex;
+    } Data;
 } Runtime_M;
 
 typedef struct {
     // protect instructions like boot before Runtime,
     // if it is NULL, Runtime will only protect self.
     void* BootInstAddress;
+
+    // detect environment when initialize runtime, if not safe, 
+    // stop initialization and exit runtime at once.
+    bool EnableSecurityMode;
+
+    // disable detector for test or debug.
+    bool DisableDetector;
 
     // disable sysmon for implement single thread model.
     bool DisableSysmon;
