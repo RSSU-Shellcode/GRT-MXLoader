@@ -22,8 +22,8 @@ errno Boot()
         .BootInstAddress     = GetFuncAddr(&Boot),
         .EnableSecurityMode  = false,
         .DisableDetector     = false,
-        .DisableSysmon       = false,
         .DisableWatchdog     = false,
+        .DisableSysmon       = false,
         .NotEraseInstruction = false,
         .NotAdjustProtect    = false,
         .TrackCurrentThread  = false,
@@ -133,8 +133,8 @@ static errno loadOption(Runtime_Opts* options)
     // load runtime options from stub
     options->EnableSecurityMode  = *(bool*)(stub + OPT_OFFSET_ENABLE_SECURITY_MODE);
     options->DisableDetector     = *(bool*)(stub + OPT_OFFSET_DISABLE_DETECTOR);
-    options->DisableSysmon       = *(bool*)(stub + OPT_OFFSET_DISABLE_SYSMON);
     options->DisableWatchdog     = *(bool*)(stub + OPT_OFFSET_DISABLE_WATCHDOG);
+    options->DisableSysmon       = *(bool*)(stub + OPT_OFFSET_DISABLE_SYSMON);
     options->NotEraseInstruction = *(bool*)(stub + OPT_OFFSET_NOT_ERASE_INSTRUCTION);
     options->NotAdjustProtect    = *(bool*)(stub + OPT_OFFSET_NOT_ADJUST_PROTECT);
     options->TrackCurrentThread  = *(bool*)(stub + OPT_OFFSET_TRACK_CURRENT_THREAD);
