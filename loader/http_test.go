@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testURL = "https://github.com/RSSU-Shellcode/GRT-MXLoader"
+const testURL = "https://github.com/RTS-Framework/GRT-MXLoader"
 
 func TestHTTP(t *testing.T) {
 	t.Run("common", func(t *testing.T) {
