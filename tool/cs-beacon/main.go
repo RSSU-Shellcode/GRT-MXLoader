@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/RSSU-Shellcode/GRT-MXLoader/loader"
+	"github.com/RTS-Framework/GRT-MXLoader/loader"
 )
 
 var (

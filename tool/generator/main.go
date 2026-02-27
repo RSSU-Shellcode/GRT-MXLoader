@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/RSSU-Shellcode/GRT-Develop/option"
-	"github.com/RSSU-Shellcode/GRT-MXLoader/loader"
+	"github.com/RTS-Framework/GRT-Develop/option"
+	"github.com/RTS-Framework/GRT-MXLoader/loader"
 )
 
 const (
