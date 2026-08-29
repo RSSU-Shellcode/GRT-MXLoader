@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-
+	
 	"github.com/RTS-Framework/GRT-Develop/argument"
 )
 
@@ -15,19 +15,19 @@ func main() {
 	}
 	stub, err := argument.Encode(args...)
 	checkError(err)
-
+	
 	fmt.Println("============x86============")
 	fmt.Println(dumpBytesHex(stub))
 	fmt.Println("===========================")
-
+	
 	fmt.Println()
-
+	
 	args = []*argument.Arg{
 		{ID: 1, Data: []byte{0xFE}}, // invalid PE image config
 	}
 	stub, err = argument.Encode(args...)
 	checkError(err)
-
+	
 	fmt.Println("============x64============")
 	fmt.Println(dumpBytesHex(stub))
 	fmt.Println("===========================")
