@@ -8,10 +8,10 @@ typedef uint32 errno;
 void  SetLastErrno(errno errno);
 errno GetLastErrno();
 
-// 00······ module id
-// ··00···· error flags
-// ····00·· major error id
-// ······00 minor error id
+// 0x00······ module id
+// 0x··00···· error flags
+// 0x····00·· major error id
+// 0x······00 minor error id
 
 #define NO_ERROR 0x00000000
 
