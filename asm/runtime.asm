@@ -5,9 +5,9 @@ ENDIF
 .code
 
 IFDEF _WIN32
-  _InitRuntime@4 proc
+  _InitRuntime@8 proc
   INCLUDE <inst/runtime_x86.inst>
-  _InitRuntime@4 endp
+  _InitRuntime@8 endp
 ELSE
   InitRuntime proc
   INCLUDE <inst/runtime_x64.inst>
