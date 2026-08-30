@@ -8,17 +8,17 @@
 #include "errno.h"
 #include "runtime.h"
 
-typedef void* (*GetProc_t)(LPSTR name);
+typedef void* (*GetProc_t)(byte* name);
 typedef uint  (*ExitCode_t)();
 typedef errno (*Start_t)();
 typedef errno (*Wait_t)();
 typedef errno (*Execute_t)();
-typedef errno (*Exit_t)(uint exitCode);
+typedef errno (*Exit_t)(uint32 exitCode);
 typedef errno (*Destroy_t)();
 
 typedef struct {
-    // use custom FindAPI from Gleam-RT for hook.
-    FindAPI_t FindAPI;
+    // set custom FindAPI from for hook or debug.
+    FindAPI_MA_t FindAPI;
 
     // PE image memory address.
     void* Image;
@@ -28,34 +28,31 @@ typedef struct {
     void* CommandLineA;
     void* CommandLineW;
 
-    // wait main thread exit if it is a exe image.
-    bool WaitMain;
-
-    // if failed to load library, can continue it.
-    bool AllowSkipDLL;
-
-    // create NUL file for set StdInput, StdOutput and
-    // StdError for ignore console input/output.
-    // If it is true, it will overwrite standard handles.
-    bool IgnoreStdIO;
-
     // set standard handles for hook GetStdHandle,
     // if them are NULL, call original GetStdHandle.
     HANDLE StdInput;
     HANDLE StdOutput;
     HANDLE StdError;
 
+    // wait main thread exit if it is a exe image.
+    BOOL WaitMain;
+
+    // if failed to load library, can continue it.
+    BOOL AllowSkipDLL;
+
+    // create NUL file for set StdInput, StdOutput and
+    // StdError for ignore console input/output.
+    // If it is true, it will overwrite standard handles.
+    BOOL IgnoreStdIO;
+
     // not running PE image after load.
-    bool NotAutoRun;
+    // this field takes effect only during Boot.
+    // it is used to make loader as a module.
+    BOOL NotAutoRun;
 
     // not stop runtime when call ExitProcess.
-    bool NotStopRuntime;
-
-    // not erase instructions after call functions about Init or Exit.
-    bool NotEraseInstruction;
-
-    // adjust current memory page protect.
-    bool NotAdjustProtect;
+    // it is used to make loader as a module.
+    BOOL NotStopRuntime;
 } PELoader_Cfg;
 
 typedef struct {
@@ -66,7 +63,10 @@ typedef struct {
     void* EntryPoint;
 
     // is this PE image is a DLL image.
-    bool IsDLL;
+    BOOL IsDLL;
+
+    // for structure alignment.
+    uint32 Reserved;
 
     // runtime mutex, need lock it before call some loader methods.
     HANDLE RuntimeMu;
@@ -86,6 +86,7 @@ typedef struct {
     Wait_t Wait;
 
     // create a thread at EntryPoint or call DllMain with DLL_PROCESS_ATTACH.
+    // it equaled call Start and Wait.
     // it can call multi times with Exit.
     Execute_t Execute;
 
@@ -100,7 +101,8 @@ typedef struct {
 
 // InitPELoader is used to initialize PE loader, it will load PE file
 // from memory, but it will not run it, caller must use PELoader_M.
-// If failed to initialize, use GetLastError to get error code.
-extern PELoader_M* InitPELoader(Runtime_M* runtime, PELoader_Cfg* cfg);
+// If failed to initialize PE loader, it will return NULL, call the
+// GetLastError to get the error code.
+PELoader_M* InitPELoader(Runtime_M* runtime, PELoader_Cfg* cfg);
 
 #endif // PE_LOADER_H
