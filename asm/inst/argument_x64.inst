@@ -1,14 +1,13 @@
-  db 067h, 02Bh, 001h, 043h
-  db 0C3h, 036h, 0EDh, 0DEh
-  db 048h, 0ADh, 018h, 089h
-  db 04Ah, 04Eh, 0FCh, 019h
-  db 0FCh, 03Fh, 02Ch, 043h
-  db 01Dh, 0D6h, 099h, 0FFh
-  db 095h, 0C0h, 044h, 03Bh
-  db 0BEh, 03Ah, 0F2h, 06Ch
-  db 001h, 000h, 000h, 000h
-  db 009h, 000h, 000h, 000h
-  db 03Ch, 0F5h, 0E4h, 029h
-  db 023h, 0AFh, 039h, 0ACh
-  db 0DCh, 0A2h, 0DFh, 043h
-  db 094h
+  db 09Dh, 04Ah, 056h, 08Ch
+  db 0A2h, 034h, 078h, 0CBh
+  db 0E5h, 09Dh, 0ABh, 05Fh
+  db 058h, 072h, 0BCh, 0FBh
+  db 033h, 07Eh, 048h, 018h
+  db 0DDh, 007h, 05Fh, 03Bh
+  db 01Ah, 0C5h, 0FFh, 082h
+  db 098h, 041h, 0C9h, 00Eh
+  db 097h, 04Bh, 056h, 085h
+  db 0A2h, 034h, 078h, 05Dh
+  db 0CBh, 053h, 07Bh, 03Ch
+  db 08Dh, 0E0h, 020h, 014h
+  db 0D5h, 0C3h, 0E5h, 06Ah
