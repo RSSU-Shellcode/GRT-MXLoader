@@ -84,17 +84,16 @@ int strcmp_w(UTF16 a, UTF16 b)
         if (s0 > s1)
         {
             return 1;
-        } else
-        {
+        } else {
             return -1;
         }
     }
 }
 
 __declspec(noinline)
-int strncmp_a(ANSI a, ANSI b, int64 n)
+int strncmp_a(ANSI a, ANSI b, uint n)
 {
-    for (int64 i = 0; i < n; i++)
+    for (uint i = 0; i < n; i++)
     {
         byte s0 = *a;
         byte s1 = *b;
@@ -119,9 +118,9 @@ int strncmp_a(ANSI a, ANSI b, int64 n)
 }
 
 __declspec(noinline)
-int strncmp_w(UTF16 a, UTF16 b, int64 n)
+int strncmp_w(UTF16 a, UTF16 b, uint n)
 {
-    for (int64 i = 0; i < n; i++)
+    for (uint i = 0; i < n; i++)
     {
         uint16 s0 = *a;
         uint16 s1 = *b;
@@ -138,8 +137,7 @@ int strncmp_w(UTF16 a, UTF16 b, int64 n)
         if (s0 > s1)
         {
             return 1;
-        } else
-        {
+        } else {
             return -1;
         }
     }
@@ -192,17 +190,16 @@ int stricmp_w(UTF16 a, UTF16 b)
         if (s0 > s1)
         {
             return 1;
-        } else
-        {
+        } else {
             return -1;
         }
     }
 }
 
 __declspec(noinline)
-int strnicmp_a(ANSI a, ANSI b, int64 n)
+int strnicmp_a(ANSI a, ANSI b, uint n)
 {
-    for (int64 i = 0; i < n; i++)
+    for (uint i = 0; i < n; i++)
     {
         byte s0 = lowercase_a(*a);
         byte s1 = lowercase_a(*b);
@@ -227,9 +224,9 @@ int strnicmp_a(ANSI a, ANSI b, int64 n)
 }
 
 __declspec(noinline)
-int strnicmp_w(UTF16 a, UTF16 b, int64 n)
+int strnicmp_w(UTF16 a, UTF16 b, uint n)
 {
-    for (int64 i = 0; i < n; i++)
+    for (uint i = 0; i < n; i++)
     {
         uint16 s0 = lowercase_w(*a);
         uint16 s1 = lowercase_w(*b);
@@ -246,12 +243,59 @@ int strnicmp_w(UTF16 a, UTF16 b, int64 n)
         if (s0 > s1)
         {
             return 1;
-        } else
-        {
+        } else {
             return -1;
         }
     }
     return 0;
+}
+
+__declspec(noinline)
+bool strequ_a(ANSI a, ANSI b)
+{
+    return strcmp_a(a, b) == 0;
+}
+
+__declspec(noinline)
+bool strequ_w(UTF16 a, UTF16 b)
+{
+    return strcmp_w(a, b) == 0;
+}
+
+__declspec(noinline)
+bool strnequ_a(ANSI a, ANSI b, uint n)
+{
+    return strncmp_a(a, b, n) == 0;
+}
+
+__declspec(noinline)
+bool strnequ_w(UTF16 a, UTF16 b, uint n)
+{
+    return strncmp_w(a, b, n) == 0;
+}
+
+__declspec(noinline)
+bool striequ_a(ANSI a, ANSI b)
+{
+    return stricmp_a(a, b) == 0;
+}
+
+__declspec(noinline)
+bool striequ_w(UTF16 a, UTF16 b)
+{
+    return stricmp_w(a, b) == 0;
+}
+
+__declspec(noinline)
+bool strniequ_a(ANSI a, ANSI b, uint n)
+{
+    return strnicmp_a(a, b, n) == 0;
+}
+
+__declspec(noinline)
+bool strniequ_w(UTF16 a, UTF16 b, uint n)
+{
+    return strnicmp_w(a, b, n) == 0;
 }
 
 __declspec(noinline)
@@ -286,7 +330,6 @@ uint strcpy_a(ANSI dst, ANSI src)
         {
             break;
         }
-
         l++;
         dst++;
         src++;
@@ -306,7 +349,6 @@ uint strcpy_w(UTF16 dst, UTF16 src)
         {
             break;
         }
-
         l++;
         dst++;
         src++;
@@ -315,10 +357,10 @@ uint strcpy_w(UTF16 dst, UTF16 src)
 }
 
 __declspec(noinline)
-uint strncpy_a(ANSI dst, ANSI src, int64 n)
+uint strncpy_a(ANSI dst, ANSI src, uint n)
 {
     uint l = 0;
-    for (int64 i = 0; i < n; i++)
+    for (uint i = 0; i < n; i++)
     {
         byte s = *src;
         *dst = s;
@@ -326,7 +368,6 @@ uint strncpy_a(ANSI dst, ANSI src, int64 n)
         {
             break;
         }
-
         l++;
         dst++;
         src++;
@@ -335,10 +376,10 @@ uint strncpy_a(ANSI dst, ANSI src, int64 n)
 }
 
 __declspec(noinline)
-uint strncpy_w(UTF16 dst, UTF16 src, int64 n)
+uint strncpy_w(UTF16 dst, UTF16 src, uint n)
 {
     uint l = 0;
-    for (int64 i = 0; i < n; i++)
+    for (uint i = 0; i < n; i++)
     {
         uint16 s = *src;
         *dst = s;
@@ -346,7 +387,6 @@ uint strncpy_w(UTF16 dst, UTF16 src, int64 n)
         {
             break;
         }
-
         l++;
         dst++;
         src++;
