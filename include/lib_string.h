@@ -28,16 +28,16 @@ int strcmp_w(UTF16 a, UTF16 b);
 // if a = b, return 0
 // if a > b, return 1
 // if a < b, return -1
-int strncmp_a(ANSI a, ANSI b, int64 n);
+int strncmp_a(ANSI a, ANSI b, uint n);
 
 // strncmp_w is used to compare two UTF-16 strings with length.
 // if a = b, return 0
 // if a > b, return 1
 // if a < b, return -1
-int strncmp_w(UTF16 a, UTF16 b, int64 n);
+int strncmp_w(UTF16 a, UTF16 b, uint n);
 
 // stricmp_a is used to compare two ANSI strings, it is case-insensitive.
-// 
+//
 // if a = b, return 0
 // if a > b, return 1
 // if a < b, return -1
@@ -53,24 +53,54 @@ int stricmp_w(UTF16 a, UTF16 b);
 // if a = b, return 0
 // if a > b, return 1
 // if a < b, return -1
-int strnicmp_a(ANSI a, ANSI b, int64 n);
+int strnicmp_a(ANSI a, ANSI b, uint n);
 
 // strnicmp_w is used to compare two UTF-16 strings with length, it is case-insensitive.
 // if a = b, return 0
 // if a > b, return 1
 // if a < b, return -1
-int strnicmp_w(UTF16 a, UTF16 b, int64 n);
+int strnicmp_w(UTF16 a, UTF16 b, uint n);
+
+// strcmp_a is used to compare two ANSI strings are equaled.
+bool strequ_a(ANSI a, ANSI b);
+
+// strcmp_w is used to compare two UTF-16 strings are equaled.
+bool strequ_w(UTF16 a, UTF16 b);
+
+// strcmp_a is used to compare two ANSI strings with length are equaled.
+bool strnequ_a(ANSI a, ANSI b, uint n);
+
+// strcmp_w is used to compare two UTF-16 strings with length are equaled.
+bool strnequ_w(UTF16 a, UTF16 b, uint n);
+
+// strcmp_a is used to compare two ANSI strings, it is case-insensitive.
+bool striequ_a(ANSI a, ANSI b);
+
+// strcmp_w is used to compare two UTF-16 strings, it is case-insensitive.
+bool striequ_w(UTF16 a, UTF16 b);
+
+// strcmp_a is used to compare two ANSI strings with length, it is case-insensitive.
+bool strniequ_a(ANSI a, ANSI b, uint n);
+
+// strcmp_w is used to compare two UTF-16 strings with length, it is case-insensitive.
+bool strniequ_w(UTF16 a, UTF16 b, uint n);
 
 // strcpy_a is used to copy source ANSI string to destination.
+// return value is the number of copied characters, exclude the null.
 uint strcpy_a(ANSI dst, ANSI src);
 
 // strcpy_w is used to copy source UTF-16 string to destination.
+// return value is the number of copied characters, exclude the null.
 uint strcpy_w(UTF16 dst, UTF16 src);
 
-// strcpy_a is used to copy source ANSI string to destination with length.
-uint strncpy_a(ANSI dst, ANSI src, int64 n);
+// strncpy_a is used to copy source ANSI string to destination with length.
+// it will stop after copying the null terminator.
+// return value is the number of copied characters, exclude the null.
+uint strncpy_a(ANSI dst, ANSI src, uint n);
 
-// strcpy_w is used to copy source UTF-16 string to destination with length.
-uint strncpy_w(UTF16 dst, UTF16 src, int64 n);
+// strncpy_w is used to copy source UTF-16 string to destination with length.
+// it will stop after copying the null terminator.
+// return value is the number of copied characters, exclude the null.
+uint strncpy_w(UTF16 dst, UTF16 src, uint n);
 
 #endif // LIB_STRING_H
