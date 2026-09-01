@@ -4,9 +4,12 @@
 #include "build.h"
 #include "c_types.h"
 
-#ifndef RELEASE_MODE
+#ifdef ENABLE_DEBUGGER
 
 bool InitDebugger();
+
+void dbg_lock();
+void dbg_unlock();
 
 void dbg_log(char* mod, char* fmt, ...);
 
@@ -14,8 +17,11 @@ void dbg_log(char* mod, char* fmt, ...);
 
 #define InitDebugger() (true)
 
+#define dbg_lock()
+#define dbg_unlock()
+
 #define dbg_log(mod, fmt, ...)
 
-#endif // RELEASE_MODE
+#endif // ENABLE_DEBUGGER
 
 #endif // DEBUG_H
