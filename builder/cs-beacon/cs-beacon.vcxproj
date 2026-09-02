@@ -57,16 +57,16 @@
     <ClInclude Include="..\..\boot\cs-beacon\boot.h" />
     <ClInclude Include="..\..\include\c_types.h" />
     <ClInclude Include="..\..\include\win_types.h" />
+    <ClInclude Include="..\..\include\win_structs.h" />
     <ClInclude Include="..\..\include\dll_kernel32.h" />
     <ClInclude Include="..\..\include\lib_memory.h" />
     <ClInclude Include="..\..\include\lib_string.h" />
-    <ClInclude Include="..\..\include\rel_addr.h" />
-    <ClInclude Include="..\..\include\hash_api.h" />
     <ClInclude Include="..\..\include\pe_image.h" />
-    <ClInclude Include="..\..\include\random.h" />
+    <ClInclude Include="..\..\include\hash_api.h" />
+    <ClInclude Include="..\..\include\rel_addr.h" />
     <ClInclude Include="..\..\include\errno.h" />
-    <ClInclude Include="..\..\include\pe_loader.h" />
     <ClInclude Include="..\..\include\runtime.h" />
+    <ClInclude Include="..\..\include\pe_loader.h" />
     <ClInclude Include="..\..\include\debug.h" />
   </ItemGroup>
   <ItemGroup>
@@ -74,9 +74,9 @@
     <ClCompile Include="..\..\boot\cs-beacon\boot.c" />
     <ClCompile Include="..\..\src\lib_memory.c" />
     <ClCompile Include="..\..\src\lib_string.c" />
+    <ClCompile Include="..\..\src\pe_image.c" />
     <ClCompile Include="..\..\src\hash_api.c" />
     <ClCompile Include="..\..\src\rel_addr.c" />
-    <ClCompile Include="..\..\src\random.c" />
     <ClCompile Include="..\..\src\errno.c" />
   </ItemGroup>
   <ItemGroup>
@@ -98,10 +98,8 @@
     <MASM Include="..\..\asm\msvc\ullshr.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </MASM>
-    <MASM Include="..\..\asm\_random.asm" />
     <MASM Include="..\..\asm\pe_loader.asm" />
     <MASM Include="..\..\asm\runtime.asm" />
-    <MASM Include="..\..\asm\epilogue.asm" />
   </ItemGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>

@@ -17,16 +17,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="..\..\asm\epilogue.asm">
-      <Filter>Assembly</Filter>
-    </MASM>
     <MASM Include="..\..\asm\pe_loader.asm">
       <Filter>Assembly</Filter>
     </MASM>
     <MASM Include="..\..\asm\runtime.asm">
-      <Filter>Assembly</Filter>
-    </MASM>
-    <MASM Include="..\..\asm\_random.asm">
       <Filter>Assembly</Filter>
     </MASM>
     <MASM Include="..\..\asm\msvc\llmul.asm">
@@ -73,9 +67,6 @@
     <ClInclude Include="..\..\include\pe_loader.h">
       <Filter>Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\random.h">
-      <Filter>Header</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\rel_addr.h">
       <Filter>Header</Filter>
     </ClInclude>
@@ -94,6 +85,9 @@
     <ClInclude Include="..\..\include\pe_image.h">
       <Filter>Header</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\win_structs.h">
+      <Filter>Header</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\errno.c">
@@ -108,9 +102,6 @@
     <ClCompile Include="..\..\src\lib_string.c">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\random.c">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\rel_addr.c">
       <Filter>Source</Filter>
     </ClCompile>
@@ -118,6 +109,9 @@
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="builder.c">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\pe_image.c">
       <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
