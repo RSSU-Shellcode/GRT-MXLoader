@@ -1,4 +1,4 @@
-package loader
+package beacon
 
 import (
 	"bytes"
@@ -9,8 +9,8 @@ import (
 	"io"
 )
 
-// ExtractBeaconStage is used to extract stage from Cobalt-Strike stageless beacon.
-func ExtractBeaconStage(image []byte) ([]byte, error) {
+// ExtractStage is used to extract stage from Cobalt-Strike stageless beacon.
+func ExtractStage(image []byte) ([]byte, error) {
 	beaconPE, err := pe.NewFile(bytes.NewReader(image))
 	if err != nil {
 		return nil, fmt.Errorf("invalid PE image data: %s", err)
