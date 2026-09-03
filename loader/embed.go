@@ -25,74 +25,67 @@ import (
 const modeEmbed = 1
 
 const (
-	disableCompress = 0
-	enableCompress  = 1
+	enableCompression  = 1
+	disableCompression = 0
 )
 
 // Embed is the embed mode.
 type Embed struct {
 	payload []byte
+	opts    EmbedOptions
+}
 
-	compress   bool
-	windowSize int
-
-	preCompress bool
+// EmbedOptions contains Embed mode options.
+type EmbedOptions struct {
+	Compress      bool `toml:"compress"       json:"compress"`
+	WindowSize    int  `toml:"window_size"    json:"window_size"`
+	ChainLen      int  `toml:"chain_len"      json:"chain_len"`
+	PreCompressed bool `toml:"pre_compressed" json:"pre_compressed"`
 }
 
 // NewEmbed is used to create payload with embed mode.
-func NewEmbed(payload []byte) Payload {
-	return &Embed{payload: payload}
-}
-
-// NewEmbedCompress is used to create embed with compression.
-func NewEmbedCompress(payload []byte, windowSize int) Payload {
-	return &Embed{
-		payload:    payload,
-		compress:   true,
-		windowSize: windowSize,
+func NewEmbed(payload []byte, opts *EmbedOptions) Payload {
+	if opts == nil {
+		opts = new(EmbedOptions)
 	}
-}
-
-// NewEmbedPreCompress is used to create embed with pre-compression.
-func NewEmbedPreCompress(payload []byte) Payload {
-	return &Embed{
-		payload:     payload,
-		compress:    true,
-		preCompress: true,
-	}
+	return &Embed{payload: payload, opts: *opts}
 }
 
 // Encode implement Payload interface.
 func (e *Embed) Encode() ([]byte, error) {
+	// get raw payload size
+	var err error
+	payload := e.payload
+	if e.opts.PreCompressed {
+		payload, err = lzss.Decompress(payload)
+		if err != nil {
+			return nil, fmt.Errorf("invalid precompressed payload: %s", err)
+		}
+	}
 	buffer := bytes.NewBuffer(make([]byte, 0, 16*1024))
 	// write the mode
 	buffer.WriteByte(modeEmbed)
-	// need use compress mode
-	if !e.compress {
+	// disable compression
+	if !e.opts.Compress && !e.opts.PreCompressed {
 		size := binary.LittleEndian.AppendUint32(nil, uint32(len(e.payload))) // #nosec
-		buffer.WriteByte(disableCompress)
+		buffer.WriteByte(disableCompression)
 		buffer.Write(size)
 		buffer.Write(e.payload)
 		return buffer.Bytes(), nil
 	}
 	// set the compressed flag
-	buffer.WriteByte(enableCompress)
+	buffer.WriteByte(enableCompression)
 	// compress payload
 	var compressed []byte
-	if !e.preCompress {
-		output, err := lzss.Compress(e.payload, e.windowSize)
+	if e.opts.PreCompressed {
+		compressed = e.payload
+	} else {
+		compressed, err = lzss.Compress(e.payload, e.opts.WindowSize, e.opts.ChainLen)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compress payload: %s", err)
 		}
-		compressed = output
-	} else {
-		compressed = e.payload
 	}
-	// write payload raw size
-	payload := e.payload
-	if e.preCompress {
-		payload = lzss.Decompress(payload)
-	}
+	// write raw size
 	size := binary.LittleEndian.AppendUint32(nil, uint32(len(payload))) // #nosec
 	buffer.Write(size)
 	// write compressed size
