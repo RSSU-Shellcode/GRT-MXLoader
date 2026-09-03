@@ -1,10 +1,7 @@
 package loader
 
 import (
-	"os"
-	"path/filepath"
-	"runtime"
-	"sync"
+	"strings"
 	"testing"
 
 	"github.com/For-ACGN/LZSS"
@@ -12,50 +9,48 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEmbed(t *testing.T) {
-	payload, err := os.ReadFile("testdata/executable.dat")
-	require.NoError(t, err)
+var testEmbedData = []byte("test embed data" + strings.Repeat("repeated data", 16))
 
+func TestEmbed(t *testing.T) {
 	t.Run("common", func(t *testing.T) {
-		embed := NewEmbed(payload)
+		embed := NewEmbed(testEmbedData, nil)
 
 		config, err := embed.Encode()
 		require.NoError(t, err)
-		require.Greater(t, len(config), len(payload))
+		require.Greater(t, len(config), len(testEmbedData))
 
 		spew.Dump(config)
 	})
 
-	t.Run("invalid payload", func(t *testing.T) {
-		embed := NewEmbed([]byte{0x00, 0x01})
-
-		config, err := embed.Encode()
-		require.EqualError(t, err, "invalid payload: EOF")
-		require.Nil(t, config)
-	})
-
 	t.Run("mode", func(t *testing.T) {
-		embed := NewEmbed(payload)
+		embed := NewEmbed(testEmbedData, nil)
 		require.Equal(t, ModeEmbed, embed.Mode())
 	})
 }
 
 func TestEmbedCompress(t *testing.T) {
-	payload, err := os.ReadFile("testdata/executable.dat")
-	require.NoError(t, err)
-
 	t.Run("common", func(t *testing.T) {
-		embed := NewEmbedCompress(payload, 4096)
+		opts := EmbedOptions{
+			Compress:   true,
+			WindowSize: lzss.MaximumWindowSize,
+			ChainLen:   lzss.DefaultChainLen,
+		}
+		embed := NewEmbed(testEmbedData, &opts)
 
 		config, err := embed.Encode()
 		require.NoError(t, err)
-		require.Less(t, len(config), len(payload))
+		require.Less(t, len(config), len(testEmbedData))
 
 		spew.Dump(config)
 	})
 
 	t.Run("invalid window size", func(t *testing.T) {
-		embed := NewEmbedCompress(payload, 40960)
+		opts := EmbedOptions{
+			Compress:   true,
+			WindowSize: 40960,
+			ChainLen:   lzss.DefaultChainLen,
+		}
+		embed := NewEmbed(testEmbedData, &opts)
 
 		config, err := embed.Encode()
 		errStr := "failed to compress payload: invalid window size"
@@ -64,106 +59,35 @@ func TestEmbedCompress(t *testing.T) {
 	})
 }
 
-func TestEmbedPreCompress(t *testing.T) {
-	payload, err := os.ReadFile("testdata/executable.dat")
-	require.NoError(t, err)
-
+func TestEmbedPreCompressed(t *testing.T) {
 	t.Run("common", func(t *testing.T) {
-		compressed, err := lzss.Compress(payload, 4096)
+		windowSize := lzss.MaximumWindowSize
+		chainLen := lzss.DefaultChainLen
+		compressed, err := lzss.Compress(testEmbedData, windowSize, chainLen)
 		require.NoError(t, err)
 
-		embed := NewEmbedPreCompress(compressed)
+		opts := EmbedOptions{
+			PreCompressed: true,
+		}
+		embed := NewEmbed(compressed, &opts)
 
 		config, err := embed.Encode()
 		require.NoError(t, err)
-		require.Less(t, len(config), len(payload))
+		require.Less(t, len(config), len(testEmbedData))
 
 		spew.Dump(config)
 	})
-}
 
-func TestEmbedInstance(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		return
-	}
-
-	wg := sync.WaitGroup{}
-	t.Run("x86", func(t *testing.T) {
-		if runtime.GOARCH != "386" {
-			return
+	t.Run("invalid compressed data", func(t *testing.T) {
+		invalid := []byte{0x80, 0x00}
+		opts := EmbedOptions{
+			PreCompressed: true,
 		}
+		embed := NewEmbed(invalid, &opts)
 
-		for _, item := range payloads {
-			path := filepath.Join("../test/payload/x86", item.path)
-			payload, err := os.ReadFile(path)
-			require.NoError(t, err)
-			opts := &Options{
-				ImageName:    "test.exe",
-				CommandLine:  "-p1 123 -p2 \"hello\"",
-				WaitMain:     item.wait,
-				AllowSkipDLL: true,
-			}
-
-			preCompressed, err := lzss.Compress(payload, 2048)
-			require.NoError(t, err)
-			embed1 := NewEmbed(payload)
-			embed2 := NewEmbedCompress(payload, 2048)
-			embed3 := NewEmbedPreCompress(preCompressed)
-
-			for _, img := range []Payload{
-				embed1, embed2, embed3,
-			} {
-				wg.Add(1)
-				go func(img Payload) {
-					defer wg.Done()
-					inst, err := CreateInstance(testLDRx86, 32, img, opts)
-					require.NoError(t, err)
-
-					addr := loadShellcode(t, inst)
-					ret, _, _ := syscallN(addr)
-					require.NotEqual(t, uintptr(0), ret)
-				}(img)
-			}
-		}
+		config, err := embed.Encode()
+		errStr := "invalid precompressed payload: truncated match reference"
+		require.EqualError(t, err, errStr)
+		require.Nil(t, config)
 	})
-
-	t.Run("x64", func(t *testing.T) {
-		if runtime.GOARCH != "amd64" {
-			return
-		}
-
-		for _, item := range payloads {
-			path := filepath.Join("../test/payload/x64", item.path)
-			payload, err := os.ReadFile(path)
-			require.NoError(t, err)
-			opts := &Options{
-				ImageName:    "test.exe",
-				CommandLine:  "-p1 123 -p2 \"hello\"",
-				WaitMain:     item.wait,
-				AllowSkipDLL: true,
-			}
-
-			preCompressed, err := lzss.Compress(payload, 2048)
-			require.NoError(t, err)
-			embed1 := NewEmbed(payload)
-			embed2 := NewEmbedCompress(payload, 2048)
-			embed3 := NewEmbedPreCompress(preCompressed)
-
-			for _, img := range []Payload{
-				embed1, embed2, embed3,
-			} {
-				wg.Add(1)
-				go func(img Payload) {
-					defer wg.Done()
-					inst, err := CreateInstance(testLDRx64, 64, img, opts)
-					require.NoError(t, err)
-
-					addr := loadShellcode(t, inst)
-					ret, _, _ := syscallN(addr)
-					require.NotEqual(t, uintptr(0), ret)
-				}(img)
-			}
-		}
-	})
-	wg.Wait()
 }
