@@ -10,10 +10,8 @@ import (
 	"github.com/RTS-Framework/GRT-MXLoader/loader"
 )
 
-const testFilePath = "stage.dat"
-
 func TestCreateInstance(t *testing.T) {
-	image := loader.NewFile(testFilePath)
+	image := loader.NewFile("stage.dat")
 
 	t.Run("x86", func(t *testing.T) {
 		inst, err := CreateInstance("386", image, nil)
@@ -82,15 +80,57 @@ func TestCreateInstance(t *testing.T) {
 	})
 
 	t.Run("invalid version", func(t *testing.T) {
+		opts := Options{
+			Version: "invalid",
+		}
 
+		inst, err := CreateInstance("386", image, &opts)
+		errStr := "failed to encode beacon version: invalid version format: invalid"
+		require.EqualError(t, err, errStr)
+		require.Nil(t, inst)
 	})
 
 	t.Run("invalid payload", func(t *testing.T) {
+		opts := loader.EmbedOptions{
+			Compress:   true,
+			WindowSize: 40960,
+		}
+		embed := loader.NewEmbed([]byte{0x00}, &opts)
 
+		inst, err := CreateInstance("386", embed, nil)
+		errStr := "invalid embed mode config: failed to compress payload: invalid window size"
+		require.EqualError(t, err, errStr)
+		require.Nil(t, inst)
 	})
 
-}
+	t.Run("invalid architecture", func(t *testing.T) {
+		inst, err := CreateInstance("123", image, nil)
+		require.EqualError(t, err, "invalid architecture: 123")
+		require.Nil(t, inst)
+	})
 
-func TestEncodeVersion(t *testing.T) {
+	t.Run("invalid template", func(t *testing.T) {
+		opts := Options{
+			Template: []byte{0x00},
+		}
 
+		inst, err := CreateInstance("386", image, &opts)
+		require.EqualError(t, err, "invalid runtime template")
+		require.Nil(t, inst)
+	})
+
+	t.Run("same argument id", func(t *testing.T) {
+		args := []*argument.Arg{
+			{ID: 100, Data: []byte("config data 1")},
+			{ID: 100, Data: []byte("config data 2")},
+		}
+		opts := Options{
+			Arguments: args,
+		}
+
+		inst, err := CreateInstance("386", image, &opts)
+		errStr := "failed to encode argument: argument id 100 already exists"
+		require.EqualError(t, err, errStr)
+		require.Nil(t, inst)
+	})
 }
