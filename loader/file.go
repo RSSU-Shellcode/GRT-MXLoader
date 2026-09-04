@@ -2,6 +2,8 @@ package loader
 
 import (
 	"bytes"
+
+	"github.com/RTS-Framework/GRT-Develop/types"
 )
 
 // +-----------+-----------+
@@ -14,7 +16,7 @@ const modeFile = 2
 
 // File is the local file mode.
 type File struct {
-	Path string
+	Path string `toml:"path" json:"path"`
 }
 
 // NewFile is used to create payload with local file mode.
@@ -28,7 +30,7 @@ func (f *File) Encode() ([]byte, error) {
 	// write the mode
 	buffer.WriteByte(modeFile)
 	// write the file path
-	buffer.WriteString(stringToUTF16(f.Path))
+	buffer.Write(types.StringToUTF16(f.Path))
 	return buffer.Bytes(), nil
 }
 
