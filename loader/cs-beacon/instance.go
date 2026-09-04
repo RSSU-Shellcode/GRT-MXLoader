@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"embed"
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/RTS-Framework/GRT-Develop/argument"
 	"github.com/RTS-Framework/GRT-Develop/instance"
@@ -31,10 +34,14 @@ type Options struct {
 	Version string `toml:"version" json:"version"`
 
 	// ignore instantiate options about runtime.
-	IgnoreInstOpts bool `toml:"ignore_runtime_opts" json:"ignore_runtime_opts"`
+	IgnoreInstOpts bool `toml:"ignore_inst_opts" json:"ignore_inst_opts"`
 
 	// set instantiate options about runtime.
 	Runtime instance.Options `toml:"runtime" json:"runtime"`
+
+	// set additional arguments for upper beacon image.
+	// all the ID must greater than 64.
+	Arguments []*argument.Arg `toml:"arguments" json:"arguments"`
 }
 
 // CreateInstance is used to create instance from PE Loader template.
@@ -45,9 +52,9 @@ func CreateInstance(arch string, image loader.Payload, opts *Options) ([]byte, e
 	// parse and encode version
 	version, err := encodeVersion(opts.Version)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode version: %s", err)
+		return nil, fmt.Errorf("failed to encode beacon version: %s", err)
 	}
-	// encode image
+	// encode beacon image
 	peImage, err := image.Encode()
 	if err != nil {
 		return nil, fmt.Errorf("invalid %s mode config: %s", image.Mode(), err)
@@ -76,6 +83,13 @@ func CreateInstance(arch string, image loader.Payload, opts *Options) ([]byte, e
 		{ID: 1, Data: version},
 		{ID: 2, Data: peImage},
 	}
+	// process additional arguments
+	for _, arg := range opts.Arguments {
+		if arg.ID <= 64 {
+			return nil, errors.New("additional argument id must greater than 64")
+		}
+		args = append(args, arg)
+	}
 	stub, err := argument.Encode(args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode argument: %s", err)
@@ -86,11 +100,28 @@ func CreateInstance(arch string, image loader.Payload, opts *Options) ([]byte, e
 func encodeVersion(version string) ([]byte, error) {
 	var ver uint32
 	if version != "" {
-		// TODO
+		sections := strings.Split(version, ".")
+		if len(sections) != 2 {
+			return nil, fmt.Errorf("invalid version format: %s", version)
+		}
+		major, err := strconv.Atoi(sections[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid major version format: %s", version)
+		}
+		if major > 0xFF {
+			return nil, fmt.Errorf("invalid major version: %d", major)
+		}
+		minor, err := strconv.Atoi(sections[1])
+		if err != nil {
+			return nil, fmt.Errorf("invalid minor version format: %s", version)
+		}
+		if minor > 0xFF {
+			return nil, fmt.Errorf("invalid minor version: %d", minor)
+		}
+		ver = uint32(major<<16 | minor)
 	} else {
 		ver = 0x0400 // v4.0
 	}
-
 	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(buf, ver)
 	return buf, nil
