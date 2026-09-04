@@ -3,11 +3,8 @@ package beacon
 import (
 	"bytes"
 	"embed"
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/RTS-Framework/GRT-Develop/argument"
 	"github.com/RTS-Framework/GRT-Develop/instance"
@@ -95,36 +92,6 @@ func CreateInstance(arch string, image loader.Payload, opts *Options) ([]byte, e
 		return nil, fmt.Errorf("failed to encode argument: %s", err)
 	}
 	return append(inst, stub...), nil
-}
-
-func encodeVersion(version string) ([]byte, error) {
-	var ver uint32
-	if version != "" {
-		sections := strings.Split(version, ".")
-		if len(sections) != 2 {
-			return nil, fmt.Errorf("invalid version format: %s", version)
-		}
-		major, err := strconv.Atoi(sections[0])
-		if err != nil {
-			return nil, fmt.Errorf("invalid major version format: %s", version)
-		}
-		if major > 0xFF {
-			return nil, fmt.Errorf("invalid major version: %d", major)
-		}
-		minor, err := strconv.Atoi(sections[1])
-		if err != nil {
-			return nil, fmt.Errorf("invalid minor version format: %s", version)
-		}
-		if minor > 0xFF {
-			return nil, fmt.Errorf("invalid minor version: %d", minor)
-		}
-		ver = uint32(major<<16 | minor)
-	} else {
-		ver = 0x0400 // v4.0
-	}
-	buf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(buf, ver)
-	return buf, nil
 }
 
 func instantiateFromTemplate(opts *Options, template []byte) ([]byte, error) {
