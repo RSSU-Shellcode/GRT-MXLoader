@@ -11,16 +11,16 @@ const testFilePath = "C:\\Windows\\System32\\cmd.exe"
 
 func TestFile(t *testing.T) {
 	t.Run("common", func(t *testing.T) {
-		image := NewFile(testFilePath)
+		payload := NewFile(testFilePath)
 
-		config, err := image.Encode()
+		config, err := payload.Encode()
 		require.NoError(t, err)
 
 		spew.Dump(config)
 	})
 
 	t.Run("mode", func(t *testing.T) {
-		image := NewFile(testFilePath)
-		require.Equal(t, ModeFile, image.Mode())
+		payload := NewFile(testFilePath)
+		require.Equal(t, ModeFile, payload.Mode())
 	})
 }
