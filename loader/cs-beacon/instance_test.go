@@ -3,7 +3,10 @@ package beacon
 import (
 	"encoding/hex"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -97,7 +100,7 @@ func TestCreateInstance(t *testing.T) {
 		require.Nil(t, inst)
 	})
 
-	t.Run("invalid payload", func(t *testing.T) {
+	t.Run("invalid image", func(t *testing.T) {
 		opts := loader.EmbedOptions{
 			Compress:   true,
 			WindowSize: 40960,
@@ -153,27 +156,15 @@ func TestInstance_Standard(t *testing.T) {
 		}
 
 		t.Run("embed", func(t *testing.T) {
-			stage, err := os.ReadFile("testdata/stage_x86.dat")
-			require.NoError(t, err)
-			payload := loader.NewEmbed(stage, nil)
-
-			inst, err := CreateInstance("386", payload, nil)
-			require.NoError(t, err)
-
-			testLoadInstance(t, inst)
+			testInstanceStandardEmbed(t)
 		})
 
 		t.Run("file", func(t *testing.T) {
-			payload := loader.NewFile("testdata/stage_x86.dat")
-
-			inst, err := CreateInstance("386", payload, nil)
-			require.NoError(t, err)
-
-			testLoadInstance(t, inst)
+			testInstanceStandardFile(t)
 		})
 
 		t.Run("http", func(t *testing.T) {
-
+			testInstanceStandardHTTP(t)
 		})
 	})
 
@@ -183,29 +174,108 @@ func TestInstance_Standard(t *testing.T) {
 		}
 
 		t.Run("embed", func(t *testing.T) {
-			stage, err := os.ReadFile("testdata/stage_x64.dat")
-			require.NoError(t, err)
-			payload := loader.NewEmbed(stage, nil)
-
-			inst, err := CreateInstance("amd64", payload, nil)
-			require.NoError(t, err)
-
-			testLoadInstance(t, inst)
+			testInstanceStandardEmbed(t)
 		})
 
 		t.Run("file", func(t *testing.T) {
-			payload := loader.NewFile("testdata/stage_x64.dat")
-
-			inst, err := CreateInstance("amd64", payload, nil)
-			require.NoError(t, err)
-
-			testLoadInstance(t, inst)
+			testInstanceStandardFile(t)
 		})
 
 		t.Run("http", func(t *testing.T) {
-
+			testInstanceStandardHTTP(t)
 		})
 	})
+}
+
+func testInstanceStandardEmbed(t *testing.T) {
+	var path string
+	switch runtime.GOARCH {
+	case "386":
+		path = "testdata/stage_x86.dat"
+	case "amd64":
+		path = "testdata/stage_x64.dat"
+	}
+	stage, err := os.ReadFile(path)
+	require.NoError(t, err)
+	image := loader.NewEmbed(stage, nil)
+
+	inst, err := CreateInstance(runtime.GOARCH, image, nil)
+	require.NoError(t, err)
+
+	testLoadInstance(t, inst)
+}
+
+func testInstanceStandardFile(t *testing.T) {
+	var path string
+	switch runtime.GOARCH {
+	case "386":
+		path = "testdata/stage_x86.dat"
+	case "amd64":
+		path = "testdata/stage_x64.dat"
+	}
+	image := loader.NewFile(path)
+
+	inst, err := CreateInstance(runtime.GOARCH, image, nil)
+	require.NoError(t, err)
+
+	testLoadInstance(t, inst)
+}
+
+func testInstanceStandardHTTP(t *testing.T) {
+	// start an http server
+	path, err := filepath.Abs("testdata")
+	require.NoError(t, err)
+	serverMux := http.NewServeMux()
+	serverMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Header1") != "h1" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		if r.Header.Get("Header2") != "h2" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		if r.UserAgent() != "ua" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		http.FileServer(http.Dir(path)).ServeHTTP(w, r)
+	})
+	server := http.Server{
+		Handler: serverMux,
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	httpAddr := listener.Addr().String()
+	go func() {
+		_ = server.Serve(listener)
+	}()
+	defer func() {
+		_ = server.Close()
+	}()
+
+	headers := make(http.Header)
+	headers.Set("Header1", "h1")
+	headers.Set("Header2", "h2")
+	opts := &loader.HTTPOptions{
+		Headers:   headers,
+		UserAgent: "ua",
+	}
+	opts.Headers.Set("Header1", "h1")
+
+	var URL string
+	switch runtime.GOARCH {
+	case "386":
+		URL = fmt.Sprintf("http://%s/stage_x86.dat", httpAddr)
+	case "amd64":
+		URL = fmt.Sprintf("http://%s/stage_x64.dat", httpAddr)
+	}
+	image := loader.NewHTTP(URL, opts)
+
+	inst, err := CreateInstance(runtime.GOARCH, image, nil)
+	require.NoError(t, err)
+
+	testLoadInstance(t, inst)
 }
 
 func TestInstance_Pipeline(t *testing.T) {
@@ -220,14 +290,14 @@ func TestInstance_Pipeline(t *testing.T) {
 
 		stage, err := os.ReadFile("testdata/stage_x86.dat")
 		require.NoError(t, err)
-		payload := loader.NewEmbed(stage, nil)
+		image := loader.NewEmbed(stage, nil)
 
 		opts := Options{
 			Template:       testBuildTemplate(t),
 			IgnoreInstOpts: true,
 		}
 
-		inst, err := CreateInstance("386", payload, &opts)
+		inst, err := CreateInstance("386", image, &opts)
 		require.NoError(t, err)
 
 		testLoadInstance(t, inst)
@@ -240,14 +310,14 @@ func TestInstance_Pipeline(t *testing.T) {
 
 		stage, err := os.ReadFile("testdata/stage_x64.dat")
 		require.NoError(t, err)
-		payload := loader.NewEmbed(stage, nil)
+		image := loader.NewEmbed(stage, nil)
 
 		opts := Options{
 			Template:       testBuildTemplate(t),
 			IgnoreInstOpts: true,
 		}
 
-		inst, err := CreateInstance("amd64", payload, &opts)
+		inst, err := CreateInstance("amd64", image, &opts)
 		require.NoError(t, err)
 
 		testLoadInstance(t, inst)
