@@ -40,7 +40,7 @@ func BuildTemplate(boot, peLoader, runtime []byte) ([]byte, error) {
 		if idx == -1 {
 			return nil, errors.New("invalid boot that without size stub")
 		}
-		binary.LittleEndian.PutUint32(stub, uint32(len(peLoader)))
+		binary.LittleEndian.PutUint32(stub, uint32(len(peLoader))) // #nosec G115
 		boot = bytes.Clone(boot)
 		copy(boot[idx:], stub)
 		template.Write(boot)
