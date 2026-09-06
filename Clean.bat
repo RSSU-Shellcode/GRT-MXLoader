@@ -11,3 +11,8 @@ rd /S /Q "builder\cs-beacon\Debug"
 rd /S /Q "builder\cs-beacon\Release"
 rd /S /Q "builder\cs-beacon\x64"
 rd /S /Q "builder\cs-beacon\x86"
+
+rd /S /Q "tool\test_stage\Debug"
+rd /S /Q "tool\test_stage\Release"
+rd /S /Q "tool\test_stage\x64"
+rd /S /Q "tool\test_stage\x86"
